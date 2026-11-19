@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Barlow Condensed", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.checkered-flag-pattern {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #0a0b0d 25%, transparent 25%),
+    linear-gradient(-45deg, #0a0b0d 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0a0b0d 75%),
+    linear-gradient(-45deg, transparent 75%, #0a0b0d 75%);
+  background-size: 44px 44px;
+  background-position: 0 0, 0 22px, 22px -22px, -22px 0;
+}
+
+.checkered-flag-strip {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #0a0b0d 25%, transparent 25%),
+    linear-gradient(-45deg, #0a0b0d 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0a0b0d 75%),
+    linear-gradient(-45deg, transparent 75%, #0a0b0d 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-card-target,
+  .print-card-target * {
+    visibility: visible;
+  }
+
+  .print-card-target {
+    position: fixed;
+    left: 50%;
+    top: 24px;
+    transform: translateX(-50%);
+    width: 92vw;
+    max-width: 720px;
+    z-index: 9999;
+  }
+}

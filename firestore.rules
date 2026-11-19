@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'mecanicadakar@gmail.com';
+    }
+
+    function isValidPlanTariff(planId, amount) {
+      return (planId == 'basico' && amount == 100000)
+        || (planId == 'platino' && amount == 150000)
+        || (planId == 'oro' && amount == 200000);
+    }
+
+    function isValidMembership(data) {
+      return data.keys().hasAll([
+          'memberNumber',
+          'planId',
+          'monthlyAmountGs',
+          'paymentStatus',
+          'paymentDate',
+          'ownerName',
+          'phone',
+          'vehicleType',
+          'vehicleModel',
+          'plate',
+          'joinedDate',
+          'inspectionApproved',
+          'monthlyScanUsed',
+          'monthlyCheckUsed',
+          'annualTowUsed',
+          'notes',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'memberNumber',
+          'planId',
+          'monthlyAmountGs',
+          'paymentStatus',
+          'paymentDate',
+          'ownerName',
+          'phone',
+          'vehicleType',
+          'vehicleModel',
+          'plate',
+          'joinedDate',
+          'inspectionApproved',
+          'monthlyScanUsed',
+          'monthlyCheckUsed',
+          'annualTowUsed',
+          'notes',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.memberNumber is string
+        && data.memberNumber.size() >= 4
+        && data.memberNumber.size() <= 24
+        && data.memberNumber.matches('^[A-Z0-9-]+$')
+        && data.planId is string
+        && data.planId in ['basico', 'platino', 'oro']
+        && data.monthlyAmountGs is number
+        && isValidPlanTariff(data.planId, data.monthlyAmountGs)
+        && data.paymentStatus is string
+        && data.paymentStatus in ['abonado', 'pendiente']
+        && data.paymentDate is string
+        && data.paymentDate.size() == 10
+        && data.paymentDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.ownerName is string
+        && data.ownerName.size() >= 3
+        && data.ownerName.size() <= 120
+        && data.phone is string
+        && data.phone.size() >= 6
+        && data.phone.size() <= 40
+        && data.vehicleType is string
+        && data.vehicleType in ['Automóvil', 'Camioneta', 'Utilitario']
+        && data.vehicleModel is string
+        && data.vehicleModel.size() >= 2
+        && data.vehicleModel.size() <= 100
+        && data.plate is string
+        && data.plate.size() >= 4
+        && data.plate.size() <= 20
+        && data.plate.matches('^[A-Z0-9 -]+$')
+        && data.joinedDate is string
+        && data.joinedDate.size() == 10
+        && data.joinedDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.inspectionApproved is bool
+        && data.monthlyScanUsed is bool
+        && data.monthlyCheckUsed is bool
+        && data.annualTowUsed is bool
+        && data.notes is string
+        && data.notes.size() <= 300
+        && data.createdByUid is string
+        && data.createdByUid.size() >= 1
+        && data.createdByUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /memberships/{membershipId} {
+      allow get: if isAdmin() && isValidId(membershipId);
+      allow list: if isAdmin();
+
+      allow create: if isAdmin()
+        && isValidId(membershipId)
+        && isValidMembership(incoming())
+        && incoming().createdByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(membershipId)
+        && isValidMembership(incoming())
+        && incoming().createdByUid == existing().createdByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'memberNumber',
+          'planId',
+          'monthlyAmountGs',
+          'paymentStatus',
+          'paymentDate',
+          'ownerName',
+          'phone',
+          'vehicleType',
+          'vehicleModel',
+          'plate',
+          'joinedDate',
+          'inspectionApproved',
+          'monthlyScanUsed',
+          'monthlyCheckUsed',
+          'annualTowUsed',
+          'notes',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(membershipId);
+    }
+  }
+}

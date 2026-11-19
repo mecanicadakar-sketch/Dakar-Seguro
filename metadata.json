@@ -1,0 +1,6 @@
+{
+  "name": "Mecánica Dakar — Club de Asistencia Mecánica",
+  "description": "Programa de membresías mensuales para automóviles y camionetas en Mecánica Dakar: Plan Básico, Platino y Oro, reglamento de cobertura y afiliación.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
