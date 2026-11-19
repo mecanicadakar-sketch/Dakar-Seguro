@@ -20,6 +20,7 @@ export function PaymentSection({
   onSelectPlan,
   onOpenAdmin,
 }: PaymentSectionProps) {
+  const [paymentModality, setPaymentModality] = useState<'mensual' | 'anual'>('mensual');
   const [clientHint, setClientHint] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [vehicleHint, setVehicleHint] = useState('');
@@ -31,20 +32,27 @@ export function PaymentSection({
     [selectedPlan]
   );
 
-  const planCode =
-    activePlan.id === 'basico' ? 'A' : activePlan.id === 'platino' ? 'B' : 'C';
+  const planCode = activePlan.planLetter;
 
   const whatsappMessage = useMemo(() => {
+    const modalityLabel =
+      paymentModality === 'anual'
+        ? `Año completo anticipado (incluye ${activePlan.annualFreeMonths} ${
+            activePlan.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'
+          })`
+        : `Mensual anticipado (${activePlan.formattedPrice}/mes)`;
+
     const lines = [
       `Hola Mecánica Dakar, quiero abonar la membresía del Club de Asistencia Mecánica:`,
-      `Plan elegido: ${activePlan.name} (${activePlan.formattedPrice}/mes)`,
+      `Plan elegido: ${activePlan.name} (Plan ${planCode})`,
+      `Modalidad de pago: ${modalityLabel}`,
       clientHint.trim() ? `Titular: ${clientHint.trim()}` : null,
       clientPhone.trim() ? `Teléfono: ${clientPhone.trim()}` : null,
       vehicleHint.trim() ? `Vehículo / Chapa: ${vehicleHint.trim()}` : null,
       `Envío mis datos para realizar el pago y solicitar el registro del vehículo y emisión del N° de afiliado.`,
     ].filter(Boolean);
     return lines.join('\n');
-  }, [activePlan, clientHint, clientPhone, vehicleHint]);
+  }, [activePlan, planCode, paymentModality, clientHint, clientPhone, vehicleHint]);
 
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER_RAW}?text=${encodeURIComponent(
     whatsappMessage
@@ -91,12 +99,12 @@ export function PaymentSection({
 
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Plan Selection + Payment Instructions & Proof Delivery */}
-          <div className="lg:col-span-7 bg-white border border-[#E2E2DC] rounded-lg p-6 sm:p-7 space-y-6">
+          <div className="lg:col-span-7 min-w-0 bg-white border border-[#E2E2DC] rounded-lg p-4 sm:p-7 space-y-6">
             <div>
               <span className="block text-xs font-semibold text-[#52565E] mb-2">
                 1. Plan seleccionado para abonar
               </span>
-              <div className="grid grid-cols-3 gap-2 p-1 bg-[#F2F2EE] rounded-md border border-[#E5E5DF]">
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 p-1 bg-[#F2F2EE] rounded-md border border-[#E5E5DF]">
                 {MEMBERSHIP_PLANS.map((plan) => {
                   const active = selectedPlan === plan.id;
                   return (
@@ -110,9 +118,15 @@ export function PaymentSection({
                           : 'text-[#4A4E55] hover:text-[#0A0B0D]'
                       }`}
                     >
-                      <span className="block text-xs font-semibold">{plan.name}</span>
+                      <span className="block text-xs font-semibold">
+                        {plan.name} (Plan {plan.planLetter})
+                      </span>
                       <span className="block font-mono-tabular text-[11px] opacity-90">
-                        {formatGuaranies(plan.monthlyPriceGs)}
+                        {formatGuaranies(plan.monthlyPriceGs)}/mes
+                      </span>
+                      <span className="block text-[10px] opacity-80 mt-0.5">
+                        Anual: {plan.annualFreeMonths}{' '}
+                        {plan.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'}
                       </span>
                     </button>
                   );
@@ -120,19 +134,66 @@ export function PaymentSection({
               </div>
             </div>
 
+            <div>
+              <span className="block text-xs font-semibold text-[#52565E] mb-2">
+                Modalidad de abono
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 bg-[#F2F2EE] rounded-md border border-[#E5E5DF]">
+                <button
+                  type="button"
+                  onClick={() => setPaymentModality('mensual')}
+                  className={`py-2.5 px-3 text-left rounded transition-colors cursor-pointer ${
+                    paymentModality === 'mensual'
+                      ? 'bg-[#0A0B0D] text-[#F5B700]'
+                      : 'text-[#4A4E55] hover:text-[#0A0B0D]'
+                  }`}
+                >
+                  <span className="block text-xs font-semibold">Pago mensual anticipado</span>
+                  <span className="block font-mono-tabular text-[11px] opacity-90">
+                    {activePlan.formattedPrice} · 30 días de vigencia
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentModality('anual')}
+                  className={`py-2.5 px-3 text-left rounded transition-colors cursor-pointer ${
+                    paymentModality === 'anual'
+                      ? 'bg-[#0A0B0D] text-[#F5B700]'
+                      : 'text-[#4A4E55] hover:text-[#0A0B0D]'
+                  }`}
+                >
+                  <span className="block text-xs font-semibold">
+                    Año completo anticipado · {activePlan.annualFreeMonths}{' '}
+                    {activePlan.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'}
+                  </span>
+                  <span className="block text-[11px] opacity-90">
+                    Plan {planCode}: bonificación por pago anual completo
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* Payment Box */}
-            <div className="bg-[#0A0B0D] text-white rounded-lg p-5 sm:p-6 border border-[#262930] space-y-4">
+            <div className="bg-[#0A0B0D] text-white rounded-lg p-4 sm:p-6 border border-[#262930] space-y-4 overflow-hidden">
               <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-4 border-b border-white/10">
                 <div>
                   <p className="text-xs font-medium text-[#F5B700]">
-                    Total mensual anticipado · {activePlan.name}
+                    {paymentModality === 'anual'
+                      ? `Año completo anticipado · ${activePlan.name} (Plan ${planCode})`
+                      : `Total mensual anticipado · ${activePlan.name} (Plan ${planCode})`}
                   </p>
-                  <p className="font-mono-tabular text-3xl font-bold text-white mt-1">
-                    {activePlan.formattedPrice}
+                  <p className="font-mono-tabular text-2xl sm:text-3xl font-bold text-white mt-1">
+                    {paymentModality === 'anual'
+                      ? `${activePlan.annualFreeMonths} ${
+                          activePlan.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'
+                        } incluidos`
+                      : activePlan.formattedPrice}
                   </p>
                 </div>
                 <p className="text-xs text-[#C7CBD1]">
-                  Vigencia: 30 días · 1 vehículo
+                  {paymentModality === 'anual'
+                    ? `Cuota base: ${activePlan.formattedPrice}/mes · 1 vehículo`
+                    : 'Vigencia: 30 días · 1 vehículo'}
                 </p>
               </div>
 
@@ -140,14 +201,14 @@ export function PaymentSection({
                 <p className="text-xs font-semibold text-[#F5B700]">
                   2. Recepción de pagos y comprobantes
                 </p>
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-[#14161A] border border-white/10 rounded-md px-4 py-3">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-[#14161A] border border-white/10 rounded-md px-3 sm:px-4 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Phone className="w-4 h-4 text-[#F5B700] shrink-0" aria-hidden="true" />
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[11px] text-[#9AA0A9]">
                         Número oficial del administrador
                       </p>
-                      <p className="font-mono-tabular text-base font-bold text-white">
+                      <p className="font-mono-tabular text-sm sm:text-base font-bold text-white break-all">
                         {WHATSAPP_NUMBER_DISPLAY}
                       </p>
                     </div>
@@ -156,9 +217,9 @@ export function PaymentSection({
                   <button
                     type="button"
                     onClick={handleCopyPhone}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded transition-colors cursor-pointer"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded transition-colors cursor-pointer"
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 shrink-0" />
                     {copiedPhone ? 'Número copiado' : 'Copiar número'}
                   </button>
                 </div>
@@ -221,24 +282,24 @@ export function PaymentSection({
                 </div>
               </div>
 
-              <div className="pt-2 flex flex-wrap items-center gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
                 <a
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded-md transition-colors whitespace-nowrap"
+                  className="w-full sm:w-auto max-w-full inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-3 text-sm font-bold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded-md transition-colors text-center leading-snug break-words"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  Enviar datos para el pago al {WHATSAPP_NUMBER_DISPLAY}
+                  <MessageCircle className="w-4 h-4 shrink-0" />
+                  <span>Enviar datos para el pago al {WHATSAPP_NUMBER_DISPLAY}</span>
                 </a>
 
                 <button
                   type="button"
                   onClick={handleCopyMessage}
-                  className="inline-flex items-center gap-1.5 px-4 py-3 text-xs font-semibold text-white border border-white/20 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-3 text-xs font-semibold text-white border border-white/20 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  <Copy className="w-3.5 h-3.5" />
-                  {copiedMessage ? 'Mensaje copiado' : 'Copiar texto'}
+                  <Copy className="w-3.5 h-3.5 shrink-0" />
+                  <span>{copiedMessage ? 'Mensaje copiado' : 'Copiar texto'}</span>
                 </button>
               </div>
             </div>

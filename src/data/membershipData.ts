@@ -2,11 +2,14 @@ export type PlanId = 'basico' | 'platino' | 'oro';
 
 export interface MembershipPlan {
   id: PlanId;
+  planLetter: 'A' | 'B' | 'C';
   indexLabel: string;
   name: string;
   tier: string;
   monthlyPriceGs: number;
   formattedPrice: string;
+  annualFreeMonths: number;
+  annualPromoText: string;
   inheritsFrom?: string;
   summary: string;
   benefits: string[];
@@ -47,11 +50,14 @@ export const WORKSHOP_IMAGES = {
 export const MEMBERSHIP_PLANS: MembershipPlan[] = [
   {
     id: 'basico',
+    planLetter: 'A',
     indexLabel: '01',
     name: 'Plan Básico',
     tier: 'Inicial',
     monthlyPriceGs: 100000,
     formattedPrice: '100.000 Gs.',
+    annualFreeMonths: 1,
+    annualPromoText: '1 mes gratis pagando el año completo anticipado',
     summary:
       'Control preventivo mensual y diagnóstico electrónico para mantener el vehículo monitoreado sin sorpresas.',
     benefits: [
@@ -70,11 +76,14 @@ export const MEMBERSHIP_PLANS: MembershipPlan[] = [
   },
   {
     id: 'platino',
+    planLetter: 'B',
     indexLabel: '02',
     name: 'Plan Platino',
     tier: 'Intermedio',
     monthlyPriceGs: 150000,
     formattedPrice: '150.000 Gs.',
+    annualFreeMonths: 2,
+    annualPromoText: '2 meses gratis pagando el año completo anticipado',
     inheritsFrom: 'Incluye todos los beneficios del Básico, más:',
     summary:
       'Pensado para quienes realizan sus servicios de mantenimiento periódico y buscan ahorro en mano de obra e inyección.',
@@ -93,11 +102,14 @@ export const MEMBERSHIP_PLANS: MembershipPlan[] = [
   },
   {
     id: 'oro',
+    planLetter: 'C',
     indexLabel: '03',
     name: 'Plan Oro',
     tier: 'Premium',
     monthlyPriceGs: 200000,
     formattedPrice: '200.000 Gs.',
+    annualFreeMonths: 3,
+    annualPromoText: '3 meses gratis pagando el año completo anticipado',
     inheritsFrom: 'Incluye todos los beneficios del Platino, más:',
     summary:
       'Cobertura integral en taller con revisión preventiva mensual, máximo descuento en mano de obra y traslado mensual con grúa.',
@@ -216,10 +228,23 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     platino: 'No incluido',
     oro: '1 mensual (hasta 3 km)',
   },
+  {
+    id: 'annual-bonus',
+    category: 'descuentos',
+    feature: 'Beneficio por pago del año completo anticipado',
+    detail: 'Meses sin costo adicional al abonar el año completo por adelantado',
+    basico: '1 mes gratis (Plan A)',
+    platino: '2 meses gratis (Plan B)',
+    oro: '3 meses gratis (Plan C)',
+  },
 ];
 
 export const GENERAL_CONDITIONS: GeneralCondition[] = [
-  { concept: 'Pago', condition: 'Mensual y anticipado' },
+  { concept: 'Pago', condition: 'Mensual anticipado o año completo anticipado' },
+  {
+    concept: 'Pago anual anticipado',
+    condition: 'Plan A: 1 mes gratis · Plan B: 2 meses gratis · Plan C: 3 meses gratis',
+  },
   { concept: 'Afiliación', condition: 'Un vehículo por membresía' },
   { concept: 'Identificación', condition: 'Chapa y datos del vehículo' },
   { concept: 'Vigencia', condition: '30 días por período abonado' },

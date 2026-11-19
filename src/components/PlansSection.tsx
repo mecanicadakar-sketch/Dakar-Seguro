@@ -51,7 +51,7 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
                   <div className="pb-4 border-b border-white/10 pr-24">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xs font-semibold text-[#F5B700]">
-                        {plan.indexLabel} · {plan.tier}
+                        {plan.indexLabel} · Plan {plan.planLetter} · {plan.tier}
                       </p>
                       {isSelected && (
                         <span className="text-[11px] font-semibold text-[#F5B700] underline decoration-[#F5B700] decoration-2 underline-offset-4">
@@ -71,6 +71,15 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
                     <p className="text-xs mt-1 text-[#A6ACB5]">
                       Por mes · Por vehículo
                     </p>
+                    <div className="mt-3 px-3 py-2 rounded-md bg-[#16191F] border border-[#F5B700]/45">
+                      <p className="text-xs font-bold text-[#F5B700]">
+                        Año completo anticipado: {plan.annualFreeMonths}{' '}
+                        {plan.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'}
+                      </p>
+                      <p className="text-[11px] text-[#D0D4DC] mt-0.5">
+                        {plan.annualPromoText}
+                      </p>
+                    </div>
                   </div>
 
                   <p className="mt-4 text-sm leading-relaxed text-[#C7CBD1]">
@@ -111,6 +120,64 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
               </article>
             );
           })}
+        </div>
+
+        {/* Fidelity Reward Banner matching reference box */}
+        <div className="relative overflow-hidden mt-10 bg-[#0A0B0D] text-white rounded-xl border border-[#F5B700]/35 p-6 sm:p-8 text-center">
+          <div
+            aria-hidden="true"
+            className="absolute top-0 right-0 w-28 h-16 sm:w-44 sm:h-24 overflow-hidden pointer-events-none"
+          >
+            <WavyCheckeredFlag className="w-full h-full" />
+          </div>
+
+          <div className="relative z-10">
+            <p className="font-display text-2xl sm:text-3xl font-bold tracking-wide text-[#F5B700] uppercase">
+              ¡PREMIAMOS TU FIDELIDAD!
+            </p>
+            <p className="font-display text-lg sm:text-xl font-bold tracking-wider text-white uppercase mt-1">
+              CLUB MECÁNICA DAKAR
+            </p>
+
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-lg bg-[#23272E] border border-white/10 px-6 py-6 flex flex-col items-center justify-center">
+                <p className="font-display text-3xl sm:text-4xl font-bold text-[#F5B700] leading-none">
+                  3 MESES
+                </p>
+                <p className="text-base sm:text-lg font-bold text-white mt-2">
+                  Beneficios extra
+                </p>
+                <p className="text-sm font-semibold text-[#F5B700] mt-2 max-w-sm leading-snug">
+                  Bono de descuento de 50.000 Gs en descuento en mano de obra en mecánica.
+                </p>
+                <p className="text-xs sm:text-sm text-[#C7CBD1] mt-2">
+                  Más ahorro y mantenimiento preventivo
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-gradient-to-br from-[#C8961E] to-[#9E7210] border border-[#F5B700]/50 px-6 py-6 flex flex-col items-center justify-center">
+                <p className="font-display text-3xl sm:text-4xl font-bold text-white leading-none">
+                  6 MESES
+                </p>
+                <p className="text-base sm:text-lg font-bold text-white mt-2">
+                  Más beneficios
+                </p>
+                <p className="text-sm font-bold text-[#0A0B0D] mt-2 max-w-sm leading-snug">
+                  Bono de 100.000 Gs. en descuento en mano de obra en mecánica.
+                </p>
+                <p className="text-xs sm:text-sm text-white/95 mt-2">
+                  Mayor fidelidad, mayor recompensa
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-6 text-base sm:text-lg font-bold text-[#F5B700]">
+              ¡Cuidá tu vehículo y ahorrá con nosotros!
+            </p>
+            <p className="mt-1 font-display text-sm sm:text-base font-bold tracking-wider text-white uppercase">
+              MECÁNICA DAKAR · TU VEHÍCULO PROTEGIDO
+            </p>
+          </div>
         </div>
 
         {/* Visual Editorial Proof Strip */}
