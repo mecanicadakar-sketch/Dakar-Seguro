@@ -28,10 +28,8 @@ service cloud.firestore {
         && request.auth.token.email == 'mecanicadakar@gmail.com';
     }
 
-    function isValidPlanTariff(planId, amount) {
-      return (planId == 'basico' && amount == 100000)
-        || (planId == 'platino' && amount == 150000)
-        || (planId == 'oro' && amount == 200000);
+    function isValidPlanAmount(amount) {
+      return amount is number && amount >= 10000 && amount <= 5000000;
     }
 
     function isValidMembership(data) {
@@ -73,6 +71,10 @@ service cloud.firestore {
           'monthlyCheckUsed',
           'annualTowUsed',
           'notes',
+          'bonusDiscountGs',
+          'bonusReason',
+          'bonusApplied',
+          'isTopTenSubscriber',
           'createdByUid',
           'createdAt',
           'updatedAt'
@@ -83,8 +85,7 @@ service cloud.firestore {
         && data.memberNumber.matches('^[A-Z0-9-]+$')
         && data.planId is string
         && data.planId in ['basico', 'platino', 'oro']
-        && data.monthlyAmountGs is number
-        && isValidPlanTariff(data.planId, data.monthlyAmountGs)
+        && isValidPlanAmount(data.monthlyAmountGs)
         && data.paymentStatus is string
         && data.paymentStatus in ['abonado', 'pendiente']
         && data.paymentDate is string
@@ -114,11 +115,74 @@ service cloud.firestore {
         && data.annualTowUsed is bool
         && data.notes is string
         && data.notes.size() <= 300
+        && (!('bonusDiscountGs' in data) || (data.bonusDiscountGs is number && data.bonusDiscountGs >= 0 && data.bonusDiscountGs <= 5000000))
+        && (!('bonusReason' in data) || (data.bonusReason is string && data.bonusReason.size() <= 160))
+        && (!('bonusApplied' in data) || data.bonusApplied is bool)
+        && (!('isTopTenSubscriber' in data) || data.isTopTenSubscriber is bool)
         && data.createdByUid is string
         && data.createdByUid.size() >= 1
         && data.createdByUid.size() <= 128
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
+    }
+
+    function isValidPlanConfig(data, planId) {
+      return data.keys().hasAll([
+          'planId',
+          'monthlyPriceGs',
+          'annualFreeMonths',
+          'laborDiscountPct',
+          'injectorDiscountPct',
+          'hasFreeOilChangeLabor',
+          'hasFreeTow',
+          'summary',
+          'benefits',
+          'updatedByUid',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'planId',
+          'monthlyPriceGs',
+          'annualFreeMonths',
+          'laborDiscountPct',
+          'injectorDiscountPct',
+          'hasFreeOilChangeLabor',
+          'hasFreeTow',
+          'summary',
+          'benefits',
+          'updatedByUid',
+          'updatedAt'
+        ])
+        && data.planId is string
+        && data.planId in ['basico', 'platino', 'oro']
+        && data.planId == planId
+        && isValidPlanAmount(data.monthlyPriceGs)
+        && data.annualFreeMonths is number
+        && data.annualFreeMonths >= 0
+        && data.annualFreeMonths <= 11
+        && data.laborDiscountPct is number
+        && data.laborDiscountPct >= 0
+        && data.laborDiscountPct <= 100
+        && data.injectorDiscountPct is number
+        && data.injectorDiscountPct >= 0
+        && data.injectorDiscountPct <= 100
+        && data.hasFreeOilChangeLabor is bool
+        && data.hasFreeTow is bool
+        && data.summary is string
+        && data.summary.size() >= 10
+        && data.summary.size() <= 300
+        && data.benefits is list
+        && data.benefits.size() >= 1
+        && data.benefits.size() <= 15
+        && data.benefits[0] is string
+        && data.benefits[0].size() >= 2
+        && data.benefits[0].size() <= 200
+        && data.updatedByUid is string
+        && data.updatedByUid == request.auth.uid
+        && data.updatedByUid.size() >= 1
+        && data.updatedByUid.size() <= 128
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
     }
 
     match /memberships/{membershipId} {
@@ -155,10 +219,41 @@ service cloud.firestore {
           'monthlyCheckUsed',
           'annualTowUsed',
           'notes',
+          'bonusDiscountGs',
+          'bonusReason',
+          'bonusApplied',
+          'isTopTenSubscriber',
           'updatedAt'
         ]);
 
       allow delete: if isAdmin() && isValidId(membershipId);
+    }
+
+    match /planConfigs/{planId} {
+      allow get: if planId in ['basico', 'platino', 'oro'];
+
+      allow create: if isAdmin()
+        && isValidId(planId)
+        && isValidPlanConfig(incoming(), planId);
+
+      allow update: if isAdmin()
+        && isValidId(planId)
+        && isValidPlanConfig(incoming(), planId)
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'planId',
+          'monthlyPriceGs',
+          'annualFreeMonths',
+          'laborDiscountPct',
+          'injectorDiscountPct',
+          'hasFreeOilChangeLabor',
+          'hasFreeTow',
+          'summary',
+          'benefits',
+          'updatedByUid',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(planId);
     }
   }
 }

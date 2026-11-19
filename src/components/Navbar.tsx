@@ -21,11 +21,12 @@ export function Navbar({
     { label: 'Comparador', id: 'comparador' },
     { label: 'Simulador', id: 'simulador' },
     { label: 'Reglamento', id: 'reglamento' },
+    { label: 'Preguntas frecuentes', id: 'preguntas' },
   ];
 
   return (
     <header className="sticky top-0 z-40 bg-[#0A0B0D]/95 backdrop-blur-sm border-b border-white/10 text-[#F5F5F2]">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-8">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4 lg:gap-8">
         <button
           type="button"
           onClick={() => onNavigatePublic('inicio')}
@@ -48,7 +49,7 @@ export function Navbar({
 
         <nav
           aria-label="Navegación principal"
-          className="hidden md:flex items-center gap-7 text-sm font-medium text-[#D6D9DF]"
+          className="hidden md:flex items-center gap-4 lg:gap-6 text-xs lg:text-sm font-medium text-[#D6D9DF]"
         >
           {navItems.map((item) => (
             <button

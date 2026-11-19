@@ -86,19 +86,20 @@ export const MEMBERSHIP_PLANS: MembershipPlan[] = [
     annualPromoText: '2 meses gratis pagando el año completo anticipado',
     inheritsFrom: 'Incluye todos los beneficios del Básico, más:',
     summary:
-      'Pensado para quienes realizan sus servicios de mantenimiento periódico y buscan ahorro en mano de obra e inyección.',
+      'Pensado para quienes realizan sus servicios de mantenimiento periódico, buscan ahorro en mano de obra e inyección e incluyen 1 acarreo gratuito con grúa por mes.',
     benefits: [
       '10% de descuento en mano de obra mecánica.',
-      '20% de descuento en limpieza de inyectores.',
+      '15% de descuento en limpieza de picos (inyectores).',
       'Mano de obra gratuita para cambio de aceite.',
       'Revisión de frenos gratuita.',
       'Revisión de tren delantero y suspensión.',
+      'Un acarreo gratuito con grúa por mes (hasta 3 km desde el lugar de avería hasta Mecánica Dakar).',
       'Prioridad de turnos.',
     ],
     laborDiscountPct: 10,
-    injectorDiscountPct: 20,
+    injectorDiscountPct: 15,
     hasFreeOilChangeLabor: true,
-    hasFreeTow: false,
+    hasFreeTow: true,
   },
   {
     id: 'oro',
@@ -204,10 +205,10 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
   {
     id: 'injector-discount',
     category: 'descuentos',
-    feature: 'Descuento en limpieza de inyectores',
+    feature: 'Descuento en limpieza de inyectores (picos)',
     detail: 'Requiere turno previo programado',
     basico: 'No incluido',
-    platino: '20%',
+    platino: '15%',
     oro: '20%',
   },
   {
@@ -225,7 +226,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     feature: 'Traslado gratuito con grúa hasta el taller',
     detail: '1 uso por mes hasta 3 km · Espera inicial de 60 días',
     basico: 'No incluido',
-    platino: 'No incluido',
+    platino: '1 mensual (hasta 3 km)',
     oro: '1 mensual (hasta 3 km)',
   },
   {
@@ -249,7 +250,7 @@ export const GENERAL_CONDITIONS: GeneralCondition[] = [
   { concept: 'Identificación', condition: 'Chapa y datos del vehículo' },
   { concept: 'Vigencia', condition: '30 días por período abonado' },
   { concept: 'Carencia inicial', condition: '30 días para utilizar beneficios' },
-  { concept: 'Grúa Oro', condition: 'Una utilización por mes' },
+  { concept: 'Grúa (Platino y Oro)', condition: '1 acarreo gratuito por mes (hasta 3 km)' },
   { concept: 'Espera para grúa', condition: '60 días desde la afiliación' },
   { concept: 'Repuestos', condition: 'No incluidos' },
   { concept: 'Lubricantes', condition: 'No incluidos' },
@@ -307,6 +308,89 @@ export const IMPORTANT_CLAUSES: ImportantClause[] = [
   },
 ];
 
+export interface PlanConfigRecord {
+  planId: PlanId;
+  monthlyPriceGs: number;
+  annualFreeMonths: number;
+  laborDiscountPct: number;
+  injectorDiscountPct: number;
+  hasFreeOilChangeLabor: boolean;
+  hasFreeTow: boolean;
+  summary: string;
+  benefits: string[];
+}
+
 export function formatGuaranies(value: number): string {
   return `${new Intl.NumberFormat('es-PY').format(Math.round(value))} Gs.`;
+}
+
+export function mergePlanWithConfig(
+  base: MembershipPlan,
+  override?: Partial<PlanConfigRecord> | null
+): MembershipPlan {
+  if (!override) return base;
+
+  const monthlyPriceGs =
+    typeof override.monthlyPriceGs === 'number' &&
+    override.monthlyPriceGs >= 10000 &&
+    override.monthlyPriceGs <= 5000000
+      ? Math.round(override.monthlyPriceGs)
+      : base.monthlyPriceGs;
+
+  const annualFreeMonths =
+    typeof override.annualFreeMonths === 'number' &&
+    override.annualFreeMonths >= 0 &&
+    override.annualFreeMonths <= 11
+      ? Math.round(override.annualFreeMonths)
+      : base.annualFreeMonths;
+
+  const laborDiscountPct =
+    typeof override.laborDiscountPct === 'number' &&
+    override.laborDiscountPct >= 0 &&
+    override.laborDiscountPct <= 100
+      ? Math.round(override.laborDiscountPct)
+      : base.laborDiscountPct;
+
+  const injectorDiscountPct =
+    typeof override.injectorDiscountPct === 'number' &&
+    override.injectorDiscountPct >= 0 &&
+    override.injectorDiscountPct <= 100
+      ? Math.round(override.injectorDiscountPct)
+      : base.injectorDiscountPct;
+
+  const summary =
+    typeof override.summary === 'string' && override.summary.trim().length >= 10
+      ? override.summary.trim().slice(0, 300)
+      : base.summary;
+
+  const benefits =
+    Array.isArray(override.benefits) && override.benefits.length > 0
+      ? override.benefits
+          .map((item) => String(item).trim().slice(0, 200))
+          .filter((item) => item.length >= 2)
+          .slice(0, 15)
+      : base.benefits;
+
+  return {
+    ...base,
+    monthlyPriceGs,
+    formattedPrice: formatGuaranies(monthlyPriceGs),
+    annualFreeMonths,
+    annualPromoText:
+      annualFreeMonths > 0
+        ? `${annualFreeMonths} ${annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'} pagando el año completo anticipado`
+        : '12 meses de cobertura anual continua',
+    laborDiscountPct,
+    injectorDiscountPct,
+    hasFreeOilChangeLabor:
+      typeof override.hasFreeOilChangeLabor === 'boolean'
+        ? override.hasFreeOilChangeLabor
+        : base.hasFreeOilChangeLabor,
+    hasFreeTow:
+      typeof override.hasFreeTow === 'boolean'
+        ? override.hasFreeTow
+        : base.hasFreeTow,
+    summary,
+    benefits: benefits.length > 0 ? benefits : base.benefits,
+  };
 }

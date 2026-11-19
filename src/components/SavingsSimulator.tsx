@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { formatGuaranies, MEMBERSHIP_PLANS, PlanId } from '../data/membershipData';
+import { formatGuaranies, MembershipPlan, PlanId } from '../data/membershipData';
 
 interface SavingsSimulatorProps {
+  plans: MembershipPlan[];
   onSelectPlanFromSimulator: (planId: PlanId) => void;
 }
 
@@ -13,7 +14,10 @@ const REFERENCE_PRICES = {
   towService: 220000,
 };
 
-export function SavingsSimulator({ onSelectPlanFromSimulator }: SavingsSimulatorProps) {
+export function SavingsSimulator({
+  plans,
+  onSelectPlanFromSimulator,
+}: SavingsSimulatorProps) {
   const [vehicleClass, setVehicleClass] = useState<'auto' | 'camioneta'>('auto');
   const [scansPerYear, setScansPerYear] = useState(4);
   const [oilChangesPerYear, setOilChangesPerYear] = useState(2);
@@ -32,7 +36,7 @@ export function SavingsSimulator({ onSelectPlanFromSimulator }: SavingsSimulator
       REFERENCE_PRICES.towService * (vehicleClass === 'camioneta' ? 1.15 : 1)
     );
 
-    const results = MEMBERSHIP_PLANS.map((plan) => {
+    const results = plans.map((plan) => {
       const annualFee = plan.monthlyPriceGs * 12;
 
       const coveredScans = scansPerYear * scanValue;
@@ -69,6 +73,7 @@ export function SavingsSimulator({ onSelectPlanFromSimulator }: SavingsSimulator
     )[0];
     return { results, bestOption };
   }, [
+    plans,
     factor,
     vehicleClass,
     scansPerYear,

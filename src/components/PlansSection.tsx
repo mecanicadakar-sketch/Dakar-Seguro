@@ -1,14 +1,19 @@
 import { Check, Wrench } from 'lucide-react';
 import { useState } from 'react';
-import { MEMBERSHIP_PLANS, PlanId, WORKSHOP_IMAGES } from '../data/membershipData';
+import { MembershipPlan, PlanId, WORKSHOP_IMAGES } from '../data/membershipData';
 import { WavyCheckeredFlag } from './WavyCheckeredFlag';
 
 interface PlansSectionProps {
+  plans: MembershipPlan[];
   selectedPlan: PlanId;
   onChoosePlan: (planId: PlanId) => void;
 }
 
-export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) {
+export function PlansSection({
+  plans,
+  selectedPlan,
+  onChoosePlan,
+}: PlansSectionProps) {
   const [diagImgError, setDiagImgError] = useState(false);
   const [inspImgError, setInspImgError] = useState(false);
 
@@ -28,7 +33,7 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
         </div>
 
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-          {MEMBERSHIP_PLANS.map((plan) => {
+          {plans.map((plan) => {
             const isSelected = selectedPlan === plan.id;
 
             return (
@@ -138,11 +143,17 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
             <p className="font-display text-lg sm:text-xl font-bold tracking-wider text-white uppercase mt-1">
               CLUB MECÁNICA DAKAR
             </p>
+            <p className="text-xs sm:text-sm text-[#C7CBD1] mt-1">
+              Abonando 3 o 6 meses por adelantado accedés a beneficios adicionales en taller
+            </p>
 
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-lg bg-[#23272E] border border-white/10 px-6 py-6 flex flex-col items-center justify-center">
                 <p className="font-display text-3xl sm:text-4xl font-bold text-[#F5B700] leading-none">
                   3 MESES
+                </p>
+                <p className="text-xs font-semibold text-[#F5B700] uppercase tracking-wide mt-1.5">
+                  Pagando 3 meses por adelantado
                 </p>
                 <p className="text-base sm:text-lg font-bold text-white mt-2">
                   Beneficios extra
@@ -158,6 +169,9 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
               <div className="rounded-lg bg-gradient-to-br from-[#C8961E] to-[#9E7210] border border-[#F5B700]/50 px-6 py-6 flex flex-col items-center justify-center">
                 <p className="font-display text-3xl sm:text-4xl font-bold text-white leading-none">
                   6 MESES
+                </p>
+                <p className="text-xs font-semibold text-[#0A0B0D] uppercase tracking-wide mt-1.5">
+                  Pagando 6 meses por adelantado
                 </p>
                 <p className="text-base sm:text-lg font-bold text-white mt-2">
                   Más beneficios

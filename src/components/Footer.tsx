@@ -58,6 +58,13 @@ export function Footer({ onOpenAdmin, onNavigatePublic }: FooterProps) {
           </button>
           <button
             type="button"
+            onClick={() => onNavigatePublic('preguntas')}
+            className="hover:text-[#F5B700] transition-colors cursor-pointer"
+          >
+            Preguntas
+          </button>
+          <button
+            type="button"
             onClick={() => onNavigatePublic('pagos')}
             className="hover:text-[#F5B700] transition-colors cursor-pointer"
           >

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   GENERAL_CONDITIONS,
   IMPORTANT_CLAUSES,
   ImportantClause,
+  MembershipPlan,
 } from '../data/membershipData';
 
 type ClauseFilter = 'all' | ImportantClause['category'];
@@ -35,14 +36,49 @@ const TIMELINE_STEPS = [
   },
   {
     day: 'Día 60 en adelante',
-    title: 'Grúa Plan Oro habilitada',
+    title: 'Grúa Platino y Oro habilitada',
     description:
-      'Para afiliados al Plan Oro, se cumple la espera de 60 días y queda disponible 1 traslado mensual hasta 3 km hasta el taller.',
+      'Para afiliados al Plan Platino y Plan Oro, se cumple la espera de 60 días y queda disponible 1 acarreo mensual gratuito hasta 3 km hasta el taller.',
   },
 ];
 
-export function RulesSection() {
+interface RulesSectionProps {
+  plans: MembershipPlan[];
+}
+
+export function RulesSection({ plans }: RulesSectionProps) {
   const [clauseFilter, setClauseFilter] = useState<ClauseFilter>('all');
+
+  const dynamicConditions = useMemo(() => {
+    const annualSummary = plans
+      .map(
+        (p) =>
+          `Plan ${p.planLetter}: ${p.annualFreeMonths} ${
+            p.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'
+          }`
+      )
+      .join(' · ');
+
+    const towNames = plans
+      .filter((p) => p.hasFreeTow)
+      .map((p) => p.name.replace('Plan ', ''))
+      .join(' y ');
+
+    return GENERAL_CONDITIONS.map((row) => {
+      if (row.concept === 'Pago anual anticipado') {
+        return { ...row, condition: annualSummary };
+      }
+      if (row.concept.startsWith('Grúa')) {
+        return {
+          concept: towNames ? `Grúa (${towNames})` : 'Grúa',
+          condition: towNames
+            ? '1 acarreo gratuito por mes (hasta 3 km)'
+            : 'No incluida actualmente',
+        };
+      }
+      return row;
+    });
+  }, [plans]);
 
   const filteredClauses =
     clauseFilter === 'all'
@@ -97,7 +133,7 @@ export function RulesSection() {
             </div>
             <table className="w-full text-left border-collapse">
               <tbody className="divide-y divide-[#EAEAE4]">
-                {GENERAL_CONDITIONS.map((row) => (
+                {dynamicConditions.map((row) => (
                   <tr key={row.concept} className="hover:bg-[#FAF9F5]">
                     <th
                       scope="row"

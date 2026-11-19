@@ -1,9 +1,15 @@
-import { useState } from 'react';
-import { COMPARISON_ROWS, ComparisonRow, PlanId } from '../data/membershipData';
+import { useMemo, useState } from 'react';
+import {
+  COMPARISON_ROWS,
+  ComparisonRow,
+  MembershipPlan,
+  PlanId,
+} from '../data/membershipData';
 
 type CategoryFilter = 'all' | ComparisonRow['category'];
 
 interface ComparisonMatrixProps {
+  plans: MembershipPlan[];
   selectedPlan: PlanId;
   onChoosePlan: (planId: PlanId) => void;
 }
@@ -16,13 +22,72 @@ const CATEGORY_TABS: { id: CategoryFilter; label: string }[] = [
   { id: 'prioridad', label: 'Traslado y prioridad' },
 ];
 
-export function ComparisonMatrix({ selectedPlan, onChoosePlan }: ComparisonMatrixProps) {
+export function ComparisonMatrix({
+  plans,
+  selectedPlan,
+  onChoosePlan,
+}: ComparisonMatrixProps) {
   const [filter, setFilter] = useState<CategoryFilter>('all');
+
+  const planById = useMemo(() => {
+    const map: Record<PlanId, MembershipPlan> = {
+      basico: plans[0],
+      platino: plans[1],
+      oro: plans[2],
+    };
+    for (const p of plans) {
+      map[p.id] = p;
+    }
+    return map;
+  }, [plans]);
+
+  const dynamicRows = useMemo(() => {
+    const formatPlanRowValue = (
+      row: ComparisonRow,
+      plan: MembershipPlan,
+      fallback: string
+    ): string => {
+      switch (row.id) {
+        case 'oil-labor':
+          return plan.hasFreeOilChangeLabor ? 'Gratuita' : 'No incluido';
+        case 'labor-discount':
+          return plan.laborDiscountPct > 0
+            ? `${plan.laborDiscountPct}%`
+            : 'No incluido';
+        case 'injector-discount':
+          return plan.injectorDiscountPct > 0
+            ? `${plan.injectorDiscountPct}%`
+            : 'No incluido';
+        case 'tow':
+          return plan.hasFreeTow ? '1 mensual (hasta 3 km)' : 'No incluido';
+        case 'annual-bonus':
+          return plan.annualFreeMonths > 0
+            ? `${plan.annualFreeMonths} ${
+                plan.annualFreeMonths === 1 ? 'mes gratis' : 'meses gratis'
+              } (Plan ${plan.planLetter})`
+            : 'No incluido';
+        default:
+          return fallback;
+      }
+    };
+
+    return COMPARISON_ROWS.map((row) => ({
+      ...row,
+      basico: formatPlanRowValue(row, planById.basico, row.basico),
+      platino: formatPlanRowValue(row, planById.platino, row.platino),
+      oro: formatPlanRowValue(row, planById.oro, row.oro),
+    }));
+  }, [planById]);
 
   const visibleRows =
     filter === 'all'
-      ? COMPARISON_ROWS
-      : COMPARISON_ROWS.filter((row) => row.category === filter);
+      ? dynamicRows
+      : dynamicRows.filter((row) => row.category === filter);
+
+  const towPlanNames = plans
+    .filter((p) => p.hasFreeTow)
+    .map((p) => p.name.replace('Plan ', ''))
+    .join(' y ');
 
   const renderCellValue = (value: string, isHighlightedCol: boolean) => {
     const isExcluded = value === 'No incluido';
@@ -99,10 +164,10 @@ export function ComparisonMatrix({ selectedPlan, onChoosePlan }: ComparisonMatri
                     className="text-left group cursor-pointer"
                   >
                     <span className="block font-display text-xl font-bold text-white group-hover:text-[#F5B700] transition-colors">
-                      Plan Básico
+                      {planById.basico.name}
                     </span>
                     <span className="block font-mono-tabular text-xs text-[#F5B700]">
-                      100.000 Gs. / mes
+                      {planById.basico.formattedPrice} / mes
                     </span>
                   </button>
                 </th>
@@ -117,10 +182,10 @@ export function ComparisonMatrix({ selectedPlan, onChoosePlan }: ComparisonMatri
                     className="text-left group cursor-pointer"
                   >
                     <span className="block font-display text-xl font-bold text-white group-hover:text-[#F5B700] transition-colors">
-                      Plan Platino
+                      {planById.platino.name}
                     </span>
                     <span className="block font-mono-tabular text-xs text-[#F5B700]">
-                      150.000 Gs. / mes
+                      {planById.platino.formattedPrice} / mes
                     </span>
                   </button>
                 </th>
@@ -135,10 +200,10 @@ export function ComparisonMatrix({ selectedPlan, onChoosePlan }: ComparisonMatri
                     className="text-left group cursor-pointer"
                   >
                     <span className="block font-display text-xl font-bold text-[#F5B700] group-hover:text-[#FFD028] transition-colors">
-                      Plan Oro
+                      {planById.oro.name}
                     </span>
                     <span className="block font-mono-tabular text-xs text-[#F5B700] font-medium">
-                      200.000 Gs. / mes
+                      {planById.oro.formattedPrice} / mes
                     </span>
                   </button>
                 </th>
@@ -183,7 +248,8 @@ export function ComparisonMatrix({ selectedPlan, onChoosePlan }: ComparisonMatri
             Nota operativa: Repuestos, filtros, lubricantes y trabajos fuera del taller (auxilio en ruta) no están incluidos en ningún plan.
           </p>
           <p className="font-mono-tabular font-semibold text-[#0A0B0D] shrink-0">
-            Carencia inicial: 30 días · Grúa Oro: 60 días
+            Carencia inicial: 30 días
+            {towPlanNames ? ` · Grúa (${towPlanNames}): 60 días` : ''}
           </p>
         </div>
       </div>

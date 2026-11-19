@@ -18,11 +18,13 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
+  Award,
   BellRing,
   CheckCircle2,
   Copy,
   CreditCard,
   Download,
+  Gift,
   Lock,
   LogOut,
   MessageCircle,
@@ -30,15 +32,18 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
+  Sliders,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   formatGuaranies,
-  MEMBERSHIP_PLANS,
+  MembershipPlan,
   PlanId,
 } from '../data/membershipData';
+import { PlanConfigEditor } from './PlanConfigEditor';
 import {
   auth,
   db,
@@ -67,10 +72,16 @@ interface AdminMembership {
   monthlyCheckUsed: boolean;
   annualTowUsed: boolean;
   notes: string;
+  bonusDiscountGs: number;
+  bonusReason: string;
+  bonusApplied: boolean;
+  isTopTenSubscriber: boolean;
   createdByUid: string;
 }
 
 interface AdminPanelProps {
+  plans: MembershipPlan[];
+  customizedPlanIds: Record<PlanId, boolean>;
   onBackToSite: () => void;
 }
 
@@ -178,13 +189,13 @@ function normalizeWhatsappDigits(phone: string): string | null {
 
 function buildWhatsappExpirationUrl(
   record: AdminMembership,
-  status: ExpirationStatus
+  status: ExpirationStatus,
+  plans: MembershipPlan[]
 ): string | null {
   const waDigits = normalizeWhatsappDigits(record.phone);
   if (!waDigits) return null;
 
-  const plan =
-    MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ?? MEMBERSHIP_PLANS[0];
+  const plan = plans.find((p) => p.id === record.planId) ?? plans[0];
   const expFormatted = formatDateEs(status.expirationDate);
   const amountFormatted = formatGuaranies(record.monthlyAmountGs);
 
@@ -209,7 +220,14 @@ function buildWhatsappExpirationUrl(
   return `https://wa.me/${waDigits}?text=${encodeURIComponent(message)}`;
 }
 
-export function AdminPanel({ onBackToSite }: AdminPanelProps) {
+export function AdminPanel({
+  plans,
+  customizedPlanIds,
+  onBackToSite,
+}: AdminPanelProps) {
+  const [adminSection, setAdminSection] = useState<'afiliados' | 'planes'>(
+    'afiliados'
+  );
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -240,13 +258,25 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
   // List filters & active card preview
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTab, setFilterTab] = useState<
-    'all' | 'vencido' | 'por_vencer' | 'abonado' | 'pendiente' | PlanId
+    'all' | 'vencido' | 'por_vencer' | 'con_bono' | 'abonado' | 'pendiente' | PlanId
   >('all');
   const [selectedCardMember, setSelectedCardMember] = useState<AdminMembership | null>(null);
   const [modalCardMember, setModalCardMember] = useState<AdminMembership | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [printNotice, setPrintNotice] = useState<string | null>(null);
+
+  // Bonus / Top-10 Refund loader state inside Nómina oficial de afiliados
+  const [bonusMemberId, setBonusMemberId] = useState<string>('');
+  const [bonusAmountInput, setBonusAmountInput] = useState<string>('');
+  const [bonusReasonInput, setBonusReasonInput] = useState<string>('');
+  const [bonusTopTen, setBonusTopTen] = useState<boolean>(true);
+  const [bonusAppliedInput, setBonusAppliedInput] = useState<boolean>(false);
+  const [bonusSaving, setBonusSaving] = useState<boolean>(false);
+  const [bonusFeedback, setBonusFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!modalCardMember) return;
@@ -311,6 +341,10 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
             monthlyCheckUsed: Boolean(data.monthlyCheckUsed),
             annualTowUsed: Boolean(data.annualTowUsed),
             notes: String(data.notes ?? ''),
+            bonusDiscountGs: Number(data.bonusDiscountGs ?? 0),
+            bonusReason: String(data.bonusReason ?? ''),
+            bonusApplied: Boolean(data.bonusApplied),
+            isTopTenSubscriber: Boolean(data.isTopTenSubscriber),
             createdByUid: String(data.createdByUid ?? ''),
           };
         });
@@ -360,8 +394,8 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
   };
 
   const selectedPlanObj = useMemo(
-    () => MEMBERSHIP_PLANS.find((p) => p.id === planId) ?? MEMBERSHIP_PLANS[0],
-    [planId]
+    () => plans.find((p) => p.id === planId) ?? plans[0],
+    [plans, planId]
   );
 
   const stats = useMemo(() => {
@@ -397,6 +431,23 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
         return a.status.daysLeft - b.status.daysLeft;
       });
   }, [memberships]);
+
+  const topTenCount = useMemo(
+    () => memberships.filter((m) => m.isTopTenSubscriber).length,
+    [memberships]
+  );
+
+  const bonusRecordsCount = useMemo(
+    () =>
+      memberships.filter((m) => m.bonusDiscountGs > 0 || m.isTopTenSubscriber)
+        .length,
+    [memberships]
+  );
+
+  const selectedBonusMember = useMemo(
+    () => memberships.find((m) => m.id === bonusMemberId) ?? null,
+    [memberships, bonusMemberId]
+  );
 
   const handleCreateMembership = async (e: FormEvent) => {
     e.preventDefault();
@@ -477,6 +528,10 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
         monthlyCheckUsed: false,
         annualTowUsed: false,
         notes: cleanNotes,
+        bonusDiscountGs: 0,
+        bonusReason: '',
+        bonusApplied: false,
+        isTopTenSubscriber: false,
         createdByUid: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -502,6 +557,10 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
         monthlyCheckUsed: false,
         annualTowUsed: false,
         notes: cleanNotes,
+        bonusDiscountGs: 0,
+        bonusReason: '',
+        bonusApplied: false,
+        isTopTenSubscriber: false,
         createdByUid: user.uid,
       };
       setSelectedCardMember(createdPreview);
@@ -562,6 +621,191 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
     }
   };
 
+  const handleSelectBonusMember = (memberId: string) => {
+    setBonusMemberId(memberId);
+    setBonusFeedback(null);
+    const member = memberships.find((m) => m.id === memberId);
+    if (!member) {
+      setBonusAmountInput('');
+      setBonusReasonInput('');
+      setBonusTopTen(topTenCount < 10);
+      setBonusAppliedInput(false);
+      return;
+    }
+
+    if (member.bonusDiscountGs > 0 || member.isTopTenSubscriber) {
+      setBonusAmountInput(String(member.bonusDiscountGs));
+      setBonusReasonInput(member.bonusReason);
+      setBonusTopTen(member.isTopTenSubscriber);
+      setBonusAppliedInput(member.bonusApplied);
+    } else if (topTenCount < 10) {
+      setBonusTopTen(true);
+      setBonusAmountInput(String(member.monthlyAmountGs));
+      setBonusReasonInput(
+        'Reembolso Primeros 10 suscriptores (100% del plan · descuento en cualquier servicio mecánico)'
+      );
+      setBonusAppliedInput(false);
+    } else {
+      setBonusTopTen(false);
+      setBonusAmountInput('50000');
+      setBonusReasonInput(
+        'Bono de descuento para servicio mecánico en taller'
+      );
+      setBonusAppliedInput(false);
+    }
+  };
+
+  const handleApplyBonusPreset = (
+    preset: 'top10' | 'fidelidad3' | 'fidelidad6'
+  ) => {
+    if (!selectedBonusMember) return;
+    setBonusFeedback(null);
+    setBonusAppliedInput(false);
+
+    if (preset === 'top10') {
+      setBonusTopTen(true);
+      setBonusAmountInput(String(selectedBonusMember.monthlyAmountGs));
+      setBonusReasonInput(
+        'Reembolso Primeros 10 suscriptores (100% del plan · descuento en cualquier servicio mecánico)'
+      );
+    } else if (preset === 'fidelidad3') {
+      setBonusTopTen(false);
+      setBonusAmountInput('50000');
+      setBonusReasonInput(
+        'Bono fidelidad 3 meses anticipados · descuento en mano de obra mecánica'
+      );
+    } else {
+      setBonusTopTen(false);
+      setBonusAmountInput('100000');
+      setBonusReasonInput(
+        'Bono fidelidad 6 meses anticipados · descuento en mano de obra mecánica'
+      );
+    }
+  };
+
+  const handleSaveBonus = async (e: FormEvent) => {
+    e.preventDefault();
+    setBonusFeedback(null);
+
+    if (!selectedBonusMember) {
+      setBonusFeedback({
+        type: 'error',
+        text: 'Seleccioná primero un cliente de la nómina para cargarle el bono o reembolso.',
+      });
+      return;
+    }
+
+    const digitsOnly = bonusAmountInput.replace(/\D/g, '');
+    const parsedAmount = digitsOnly ? Number(digitsOnly) : 0;
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0 || parsedAmount > 5000000) {
+      setBonusFeedback({
+        type: 'error',
+        text: 'El monto del bono o reembolso debe estar entre 0 y 5.000.000 Gs.',
+      });
+      return;
+    }
+
+    if (
+      bonusTopTen &&
+      !selectedBonusMember.isTopTenSubscriber &&
+      topTenCount >= 10
+    ) {
+      setBonusFeedback({
+        type: 'error',
+        text: 'Ya se completaron los 10 cupos de reembolso para los primeros suscriptores (10/10). Desmarcá la opción Primeros 10 para cargar un bono general.',
+      });
+      return;
+    }
+
+    const cleanReason =
+      parsedAmount > 0
+        ? (
+            bonusReasonInput.trim() ||
+            (bonusTopTen
+              ? 'Reembolso Primeros 10 suscriptores (100% del plan · descuento en cualquier servicio mecánico)'
+              : 'Bono de descuento para servicio mecánico en taller')
+          ).slice(0, 160)
+        : '';
+
+    setBonusSaving(true);
+    try {
+      await updateDoc(doc(db, 'memberships', selectedBonusMember.id), {
+        bonusDiscountGs: parsedAmount,
+        bonusReason: cleanReason,
+        bonusApplied: parsedAmount > 0 ? bonusAppliedInput : false,
+        isTopTenSubscriber: bonusTopTen,
+        updatedAt: serverTimestamp(),
+      });
+      setBonusFeedback({
+        type: 'success',
+        text:
+          parsedAmount > 0
+            ? `Bono/reembolso de ${formatGuaranies(parsedAmount)} guardado para ${selectedBonusMember.ownerName} (${selectedBonusMember.memberNumber}).`
+            : `Bono eliminado para ${selectedBonusMember.ownerName} (${selectedBonusMember.memberNumber}).`,
+      });
+    } catch (error) {
+      setBonusFeedback({
+        type: 'error',
+        text: 'No se pudo guardar el bono o reembolso en Firestore.',
+      });
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `memberships/${selectedBonusMember.id}`
+      );
+    } finally {
+      setBonusSaving(false);
+    }
+  };
+
+  const handleToggleBonusApplied = async (record: AdminMembership) => {
+    try {
+      await updateDoc(doc(db, 'memberships', record.id), {
+        bonusApplied: !record.bonusApplied,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `memberships/${record.id}`);
+    }
+  };
+
+  const handleQuickAssignTopTenRefund = async (record: AdminMembership) => {
+    if (!record.isTopTenSubscriber && topTenCount >= 10) {
+      setBonusFeedback({
+        type: 'error',
+        text: 'Ya están asignados los 10 cupos de reembolso para primeros suscriptores (10/10).',
+      });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'memberships', record.id), {
+        bonusDiscountGs: record.monthlyAmountGs,
+        bonusReason:
+          'Reembolso Primeros 10 suscriptores (100% del plan · descuento en cualquier servicio mecánico)',
+        bonusApplied: false,
+        isTopTenSubscriber: true,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `memberships/${record.id}`);
+    }
+  };
+
+  const handleClearBonus = async (record: AdminMembership) => {
+    try {
+      await updateDoc(doc(db, 'memberships', record.id), {
+        bonusDiscountGs: 0,
+        bonusReason: '',
+        bonusApplied: false,
+        isTopTenSubscriber: false,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `memberships/${record.id}`);
+    }
+  };
+
   const handleDelete = async (record: AdminMembership) => {
     try {
       await deleteDoc(doc(db, 'memberships', record.id));
@@ -578,8 +822,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
   };
 
   const copyCardText = async (record: AdminMembership) => {
-    const plan =
-      MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ?? MEMBERSHIP_PLANS[0];
+    const plan = plans.find((p) => p.id === record.planId) ?? plans[0];
     const renewal = addDays(record.paymentDate || record.joinedDate, 30);
     const carenciaEnd = addDays(record.joinedDate, 30);
     const towReady = addDays(record.joinedDate, 60);
@@ -595,7 +838,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
       `Vehículo: ${record.vehicleType} ${record.vehicleModel} · Chapa: ${record.plate}`,
       `Vencimiento período: ${formatDateEs(renewal)}`,
       `Carencia inicial (30 días): ${formatDateEs(carenciaEnd)}`,
-      plan.hasFreeTow ? `Grúa Oro (60 días): ${formatDateEs(towReady)}` : '',
+      plan.hasFreeTow ? `Grúa (${plan.name} · 60 días): ${formatDateEs(towReady)}` : '',
       `Cobertura exclusiva dentro de Mecánica Dakar. Sin asistencia en ruta.`,
     ]
       .filter(Boolean)
@@ -652,6 +895,13 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
       const expStatus = getMembershipExpirationStatus(m);
       if (filterTab === 'vencido' && !expStatus.isExpired) return false;
       if (filterTab === 'por_vencer' && !expStatus.isExpiringSoon) return false;
+      if (
+        filterTab === 'con_bono' &&
+        m.bonusDiscountGs <= 0 &&
+        !m.isTopTenSubscriber
+      ) {
+        return false;
+      }
       if (filterTab === 'abonado' && m.paymentStatus !== 'abonado') return false;
       if (filterTab === 'pendiente' && m.paymentStatus !== 'pendiente') return false;
       if (
@@ -809,7 +1059,51 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
         <div aria-hidden="true" className="h-6 w-full checkered-flag-strip" />
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-10 space-y-10">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 space-y-8">
+        {/* Admin Section Switcher */}
+        <div
+          role="tablist"
+          aria-label="Secciones del panel de administrador"
+          className="flex flex-wrap items-center gap-2 p-1.5 bg-white border border-[#E2E2DC] rounded-lg"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminSection === 'afiliados'}
+            onClick={() => setAdminSection('afiliados')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+              adminSection === 'afiliados'
+                ? 'bg-[#0A0B0D] text-[#F5B700]'
+                : 'text-[#52565E] hover:text-[#0A0B0D] hover:bg-[#FAF9F5]'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Afiliados, vencimientos y bonos ({stats.total})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminSection === 'planes'}
+            onClick={() => setAdminSection('planes')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+              adminSection === 'planes'
+                ? 'bg-[#0A0B0D] text-[#F5B700]'
+                : 'text-[#52565E] hover:text-[#0A0B0D] hover:bg-[#FAF9F5]'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            Editar precios, beneficios y descuentos
+          </button>
+        </div>
+
+        {adminSection === 'planes' ? (
+          <PlanConfigEditor
+            plans={plans}
+            customizedPlanIds={customizedPlanIds}
+            userUid={user.uid}
+          />
+        ) : (
+          <div className="space-y-10">
         {/* Top Split: Create Official Affiliate Number + Card Preview */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <form
@@ -831,7 +1125,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                 1. Plan abonado
               </span>
               <div className="grid grid-cols-3 gap-2 p-1 bg-[#F2F2EE] rounded-md border border-[#E5E5DF]">
-                {MEMBERSHIP_PLANS.map((plan) => {
+                {plans.map((plan) => {
                   const active = planId === plan.id;
                   return (
                     <button
@@ -1285,10 +1579,8 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
           {alertMembers.length > 0 && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               {alertMembers.map(({ record, status }) => {
-                const plan =
-                  MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ??
-                  MEMBERSHIP_PLANS[0];
-                const waUrl = buildWhatsappExpirationUrl(record, status);
+                const plan = plans.find((p) => p.id === record.planId) ?? plans[0];
+                const waUrl = buildWhatsappExpirationUrl(record, status, plans);
 
                 return (
                   <div
@@ -1400,6 +1692,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                   { id: 'all', label: 'Todos' },
                   { id: 'vencido', label: `Vencidos (${stats.expiredCount})` },
                   { id: 'por_vencer', label: `Por vencer (${stats.expiringSoonCount})` },
+                  { id: 'con_bono', label: `Bonos / Top 10 (${bonusRecordsCount})` },
                   { id: 'abonado', label: 'Abonados' },
                   { id: 'pendiente', label: 'Pendientes' },
                   { id: 'oro', label: 'Oro' },
@@ -1427,6 +1720,199 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
             </div>
           </div>
 
+          {/* Box para cargar bonos de descuento o reembolso (Primeros 10 clientes) */}
+          <form
+            id="bonus-loader-box"
+            onSubmit={handleSaveBonus}
+            className="mt-5 rounded-lg border-2 border-[#F5B700]/70 bg-[#FAF9F5] p-5 space-y-4"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-[#E5E5DF]">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-md bg-[#0A0B0D] text-[#F5B700] flex items-center justify-center shrink-0">
+                  <Gift className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold text-[#0A0B0D]">
+                    Cargar bonos de descuento o reembolso de pagos (Primeros 10 clientes)
+                  </h3>
+                  <p className="text-xs text-[#52565E] mt-0.5 leading-relaxed">
+                    Para los <strong>10 primeros clientes</strong> que se suscriban, el reembolso equivale al <strong>100% del monto del plan adquirido</strong> ({plans.map((p) => `${p.formattedPrice} ${p.name.replace('Plan ', '')}`).join(' · ')}) y se aplica como descuento en cualquier servicio mecánico que desee realizar en el taller.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 bg-[#0A0B0D] text-white px-3.5 py-2 rounded-md">
+                <Award className="w-4 h-4 text-[#F5B700]" />
+                <div className="text-xs">
+                  <span className="text-[#C7CBD1] block text-[10px] leading-none">
+                    Cupos Primeros 10
+                  </span>
+                  <span className="font-mono-tabular font-bold text-[#F5B700] text-sm">
+                    {topTenCount} / 10 asignados
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+              <div className="lg:col-span-4">
+                <label
+                  htmlFor="bonus-member-select"
+                  className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                >
+                  Afiliado de la nómina
+                </label>
+                <select
+                  id="bonus-member-select"
+                  value={bonusMemberId}
+                  onChange={(e) => handleSelectBonusMember(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-medium bg-white border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
+                >
+                  <option value="">Seleccionar cliente afiliado...</option>
+                  {memberships.map((m) => {
+                    const p = plans.find((pl) => pl.id === m.planId) ?? plans[0];
+                    return (
+                      <option key={`opt-${m.id}`} value={m.id}>
+                        {m.memberNumber} · {m.ownerName} ({m.plate}) · {p.name}{' '}
+                        {formatGuaranies(m.monthlyAmountGs)}
+                        {m.isTopTenSubscriber ? ' ★ Top 10' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="lg:col-span-3">
+                <label
+                  htmlFor="bonus-amount-input"
+                  className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                >
+                  Monto descuento / reembolso (Gs.)
+                </label>
+                <input
+                  id="bonus-amount-input"
+                  type="number"
+                  min={0}
+                  max={5000000}
+                  step={5000}
+                  value={bonusAmountInput}
+                  onChange={(e) => setBonusAmountInput(e.target.value)}
+                  placeholder={
+                    selectedBonusMember
+                      ? String(selectedBonusMember.monthlyAmountGs)
+                      : 'Ej: 150000'
+                  }
+                  className="w-full px-3 py-2 text-xs font-mono-tabular font-bold bg-white border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
+                />
+              </div>
+
+              <div className="lg:col-span-5">
+                <label
+                  htmlFor="bonus-reason-input"
+                  className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                >
+                  Concepto del bono o reembolso
+                </label>
+                <input
+                  id="bonus-reason-input"
+                  type="text"
+                  maxLength={160}
+                  value={bonusReasonInput}
+                  onChange={(e) => setBonusReasonInput(e.target.value)}
+                  placeholder="Ej: Reembolso Primeros 10 (100% del plan) · descuento en servicio mecánico"
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#0A0B0D] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={bonusTopTen}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setBonusTopTen(checked);
+                      if (checked && selectedBonusMember) {
+                        setBonusAmountInput(
+                          String(selectedBonusMember.monthlyAmountGs)
+                        );
+                        setBonusReasonInput(
+                          'Reembolso Primeros 10 suscriptores (100% del plan · descuento en cualquier servicio mecánico)'
+                        );
+                      }
+                    }}
+                    className="w-4 h-4 accent-[#0A0B0D]"
+                  />
+                  <span>
+                    Aplica beneficio Primeros 10 clientes (reembolso = monto del plan)
+                  </span>
+                </label>
+
+                <label className="inline-flex items-center gap-2 text-xs font-medium text-[#4A4E55] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={bonusAppliedInput}
+                    onChange={(e) => setBonusAppliedInput(e.target.checked)}
+                    className="w-4 h-4 accent-[#0A0B0D]"
+                  />
+                  <span>Ya aplicado en servicio mecánico</span>
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedBonusMember && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyBonusPreset('top10')}
+                      className="px-2.5 py-1.5 text-[11px] font-bold bg-[#0A0B0D] text-[#F5B700] rounded hover:bg-[#1E2025] transition-colors cursor-pointer"
+                    >
+                      100% Plan ({formatGuaranies(selectedBonusMember.monthlyAmountGs)})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyBonusPreset('fidelidad3')}
+                      className="px-2.5 py-1.5 text-[11px] font-semibold bg-white border border-[#DCDCD5] text-[#0A0B0D] rounded hover:bg-[#F2F2EE] transition-colors cursor-pointer"
+                    >
+                      Bono 3m (50.000 Gs.)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyBonusPreset('fidelidad6')}
+                      className="px-2.5 py-1.5 text-[11px] font-semibold bg-white border border-[#DCDCD5] text-[#0A0B0D] rounded hover:bg-[#F2F2EE] transition-colors cursor-pointer"
+                    >
+                      Bono 6m (100.000 Gs.)
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={bonusSaving || memberships.length === 0}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-[#F5B700] hover:bg-[#FFD028] disabled:opacity-60 text-[#0A0B0D] rounded-md transition-colors cursor-pointer"
+                >
+                  <Gift className="w-3.5 h-3.5" />
+                  {bonusSaving ? 'Guardando...' : 'Guardar bono / reembolso'}
+                </button>
+              </div>
+            </div>
+
+            {bonusFeedback && (
+              <div
+                role={bonusFeedback.type === 'error' ? 'alert' : 'status'}
+                className={`p-3 rounded-md text-xs font-medium flex items-start gap-2 ${
+                  bonusFeedback.type === 'error'
+                    ? 'bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B]'
+                    : 'bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46]'
+                }`}
+              >
+                <span>{bonusFeedback.text}</span>
+              </div>
+            )}
+          </form>
+
           {dataLoading ? (
             <div className="py-12 text-center text-sm text-[#52565E]">
               Cargando registros de afiliados...
@@ -1445,12 +1931,14 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
           ) : (
             <div className="mt-5 space-y-4">
               {filteredMembers.map((record) => {
-                const plan =
-                  MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ??
-                  MEMBERSHIP_PLANS[0];
+                const plan = plans.find((p) => p.id === record.planId) ?? plans[0];
                 const expStatus = getMembershipExpirationStatus(record);
                 const renewal = expStatus.expirationDate;
-                const waReminderUrl = buildWhatsappExpirationUrl(record, expStatus);
+                const waReminderUrl = buildWhatsappExpirationUrl(
+                  record,
+                  expStatus,
+                  plans
+                );
 
                 return (
                   <div
@@ -1500,6 +1988,25 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                         <span className="text-xs font-semibold text-[#8A6200]">
                           {plan.name} ({formatGuaranies(record.monthlyAmountGs)})
                         </span>
+                        {record.isTopTenSubscriber && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-[#0A0B0D] text-[#F5B700]">
+                            <Award className="w-3 h-3" />
+                            Primeros 10 · Reembolso 100%
+                          </span>
+                        )}
+                        {record.bonusDiscountGs > 0 && (
+                          <span
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                              record.bonusApplied
+                                ? 'bg-[#E5E7EB] text-[#4B5563]'
+                                : 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]'
+                            }`}
+                          >
+                            {record.bonusApplied
+                              ? `Descuento aplicado: ${formatGuaranies(record.bonusDiscountGs)}`
+                              : `Crédito disponible: ${formatGuaranies(record.bonusDiscountGs)}`}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1692,6 +2199,97 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                           </label>
                         )}
                       </div>
+
+                      <div className="bg-white border border-[#E5E5DF] rounded p-3.5 flex flex-col justify-between gap-2 md:col-span-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[#6A6E75] flex items-center gap-1.5">
+                              <Gift className="w-3.5 h-3.5 text-[#8A6200]" />
+                              <span>Bono de descuento / Reembolso en taller</span>
+                            </p>
+                            {record.bonusDiscountGs > 0 ? (
+                              <>
+                                <p className="mt-1 font-mono-tabular text-sm font-bold text-[#0A0B0D]">
+                                  {formatGuaranies(record.bonusDiscountGs)}{' '}
+                                  <span
+                                    className={`text-xs font-sans font-semibold ${
+                                      record.bonusApplied
+                                        ? 'text-[#6A6E75]'
+                                        : 'text-[#15803D]'
+                                    }`}
+                                  >
+                                    ·{' '}
+                                    {record.bonusApplied
+                                      ? 'Ya aplicado en servicio mecánico'
+                                      : 'Disponible en cualquier servicio mecánico'}
+                                  </span>
+                                </p>
+                                {record.bonusReason && (
+                                  <p className="mt-0.5 text-[11px] text-[#52565E]">
+                                    {record.bonusReason}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="mt-1 text-[11px] text-[#6A6E75]">
+                                Sin bono o reembolso cargado aún.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 shrink-0">
+                            {record.bonusDiscountGs > 0 ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleBonusApplied(record)}
+                                  className="text-xs font-semibold text-[#0A0B0D] underline decoration-[#F5B700] decoration-2 underline-offset-4 cursor-pointer"
+                                >
+                                  {record.bonusApplied
+                                    ? 'Reactivar crédito'
+                                    : 'Marcar como aplicado'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearBonus(record)}
+                                  className="text-xs font-semibold text-[#B91C1C] underline decoration-[#FCA5A5] decoration-2 underline-offset-4 cursor-pointer"
+                                >
+                                  Quitar bono
+                                </button>
+                              </>
+                            ) : (
+                              topTenCount < 10 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleQuickAssignTopTenRefund(record)
+                                  }
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold bg-[#0A0B0D] text-[#F5B700] rounded hover:bg-[#1E2025] transition-colors cursor-pointer"
+                                >
+                                  <Award className="w-3 h-3" />
+                                  Asignar reembolso Top 10 (
+                                  {formatGuaranies(record.monthlyAmountGs)})
+                                </button>
+                              )
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectBonusMember(record.id);
+                                document
+                                  .getElementById('bonus-loader-box')
+                                  ?.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'center',
+                                  });
+                              }}
+                              className="text-xs font-semibold text-[#0A0B0D] underline decoration-[#DCDCD5] decoration-2 underline-offset-4 cursor-pointer"
+                            >
+                              Editar en box
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {record.notes && (
@@ -1705,6 +2303,8 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
             </div>
           )}
         </div>
+          </div>
+        )}
       </div>
 
       {/* Modal de Tarjeta Oficial al hacer clic en Ver tarjeta */}
@@ -1810,7 +2410,8 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
             <div className="px-5 py-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 bg-[#121418]">
               <p className="text-xs text-[#C7CBD1] font-mono-tabular">
                 Carencia 30d: {formatDateEs(addDays(modalCardMember.joinedDate, 30))}
-                {modalCardMember.planId === 'oro'
+                {(modalCardMember.planId === 'platino' ||
+                  modalCardMember.planId === 'oro')
                   ? ` · Grúa 60d: ${formatDateEs(addDays(modalCardMember.joinedDate, 60))}`
                   : ''}
               </p>

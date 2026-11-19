@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminPanel } from './components/AdminPanel';
 import { ComparisonMatrix } from './components/ComparisonMatrix';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { FaqSection } from './components/FaqSection';
 import { Footer } from './components/Footer';
 import { HeroSection } from './components/HeroSection';
 import { Navbar } from './components/Navbar';
@@ -10,10 +11,12 @@ import { PlansSection } from './components/PlansSection';
 import { RulesSection } from './components/RulesSection';
 import { SavingsSimulator } from './components/SavingsSimulator';
 import { PlanId } from './data/membershipData';
+import { usePlanConfigs } from './hooks/usePlanConfigs';
 
 export default function App() {
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('platino');
   const [viewMode, setViewMode] = useState<'public' | 'admin'>('public');
+  const { plans, customizedPlanIds } = usePlanConfigs();
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
@@ -53,31 +56,45 @@ export default function App() {
 
         <main className="flex-1">
           {viewMode === 'admin' ? (
-            <AdminPanel onBackToSite={() => handleNavigatePublic('inicio')} />
+            <AdminPanel
+              plans={plans}
+              customizedPlanIds={customizedPlanIds}
+              onBackToSite={() => handleNavigatePublic('inicio')}
+            />
           ) : (
             <>
               <HeroSection
+                plans={plans}
                 onExplorePlans={() => scrollToSection('planes')}
                 onViewRules={() => scrollToSection('reglamento')}
               />
 
               <PlansSection
+                plans={plans}
                 selectedPlan={selectedPlan}
                 onChoosePlan={handleChoosePlanAndPay}
               />
 
               <ComparisonMatrix
+                plans={plans}
                 selectedPlan={selectedPlan}
                 onChoosePlan={handleChoosePlanAndPay}
               />
 
               <SavingsSimulator
+                plans={plans}
                 onSelectPlanFromSimulator={handleChoosePlanAndPay}
               />
 
-              <RulesSection />
+              <RulesSection plans={plans} />
+
+              <FaqSection
+                plans={plans}
+                onGoToPayments={() => scrollToSection('pagos')}
+              />
 
               <PaymentSection
+                plans={plans}
                 selectedPlan={selectedPlan}
                 onSelectPlan={setSelectedPlan}
                 onOpenAdmin={handleOpenAdmin}

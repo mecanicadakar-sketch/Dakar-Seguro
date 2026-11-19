@@ -1,15 +1,25 @@
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
-import { WORKSHOP_IMAGES } from '../data/membershipData';
+import {
+  formatGuaranies,
+  MembershipPlan,
+  WORKSHOP_IMAGES,
+} from '../data/membershipData';
 import { WavyCheckeredFlag } from './WavyCheckeredFlag';
 
 interface HeroSectionProps {
+  plans: MembershipPlan[];
   onExplorePlans: () => void;
   onViewRules: () => void;
 }
 
-export function HeroSection({ onExplorePlans, onViewRules }: HeroSectionProps) {
+export function HeroSection({
+  plans,
+  onExplorePlans,
+  onViewRules,
+}: HeroSectionProps) {
   const [heroImgFailed, setHeroImgFailed] = useState(false);
+  const minMonthlyPrice = Math.min(...plans.map((p) => p.monthlyPriceGs));
 
   const summaryMetrics = [
     {
@@ -29,7 +39,7 @@ export function HeroSection({ onExplorePlans, onViewRules }: HeroSectionProps) {
     },
     {
       label: 'Inversión inicial',
-      value: 'Desde 100.000 Gs.',
+      value: `Desde ${formatGuaranies(minMonthlyPrice)}`,
       detail: 'Por mes · Por vehículo identificado',
     },
   ];

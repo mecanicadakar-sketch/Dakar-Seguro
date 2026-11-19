@@ -2,11 +2,12 @@ import { ArrowRight, Check, Copy, Lock, MessageCircle, Phone } from 'lucide-reac
 import { useMemo, useState } from 'react';
 import {
   formatGuaranies,
-  MEMBERSHIP_PLANS,
+  MembershipPlan,
   PlanId,
 } from '../data/membershipData';
 
 interface PaymentSectionProps {
+  plans: MembershipPlan[];
   selectedPlan: PlanId;
   onSelectPlan: (planId: PlanId) => void;
   onOpenAdmin: () => void;
@@ -16,6 +17,7 @@ const WHATSAPP_NUMBER_DISPLAY = '+595 975 635 770';
 const WHATSAPP_NUMBER_RAW = '595975635770';
 
 export function PaymentSection({
+  plans,
   selectedPlan,
   onSelectPlan,
   onOpenAdmin,
@@ -28,8 +30,8 @@ export function PaymentSection({
   const [copiedMessage, setCopiedMessage] = useState(false);
 
   const activePlan = useMemo(
-    () => MEMBERSHIP_PLANS.find((p) => p.id === selectedPlan) ?? MEMBERSHIP_PLANS[0],
-    [selectedPlan]
+    () => plans.find((p) => p.id === selectedPlan) ?? plans[0],
+    [plans, selectedPlan]
   );
 
   const planCode = activePlan.planLetter;
@@ -83,7 +85,7 @@ export function PaymentSection({
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold text-[#8A6200] mb-2">
-            05. Sector de pagos y activación
+            06. Sector de pagos y activación
           </p>
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-[#0A0B0D] text-balance">
             Aboná tu plan elegido y enviá el comprobante al taller
@@ -105,7 +107,7 @@ export function PaymentSection({
                 1. Plan seleccionado para abonar
               </span>
               <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 p-1 bg-[#F2F2EE] rounded-md border border-[#E5E5DF]">
-                {MEMBERSHIP_PLANS.map((plan) => {
+                {plans.map((plan) => {
                   const active = selectedPlan === plan.id;
                   return (
                     <button
