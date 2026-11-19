@@ -183,7 +183,7 @@ export function ComparisonMatrix({ selectedPlan, onChoosePlan }: ComparisonMatri
             Nota operativa: Repuestos, filtros, lubricantes y trabajos fuera del taller (auxilio en ruta) no están incluidos en ningún plan.
           </p>
           <p className="font-mono-tabular font-semibold text-[#0A0B0D] shrink-0">
-            Carencia inicial: 30 días · Grúa Oro: 30 días
+            Carencia inicial: 30 días · Grúa Oro: 60 días
           </p>
         </div>
       </div>

@@ -19,7 +19,7 @@ const TIMELINE_STEPS = [
     day: 'Día 0',
     title: 'Inspección y pago anticipado',
     description:
-      'El vehículo ingresa a Mecánica Dakar para inspección previa, registro de chapa y abono del primer mes por adelantado.',
+      'El vehículo ingresa a Mecánica Dakar para carga de datos del Cliente y Vehículo, registro de chapa y abono del primer mes por adelantado.',
   },
   {
     day: 'Días 1 a 29',
@@ -28,16 +28,16 @@ const TIMELINE_STEPS = [
       'La membresía queda registrada pero aún rige la carencia de 30 días antes de utilizar los beneficios gratuitos y descuentos.',
   },
   {
-    day: 'Día 30',
+    day: 'Día 30 en adelante',
     title: 'Beneficios en taller habilitados',
     description:
       'Se activan el escaneo mensual, las revisiones preventivas, cambios de focos o aceite y los descuentos en mano de obra según plan.',
   },
   {
-    day: 'Día 30',
+    day: 'Día 60 en adelante',
     title: 'Grúa Plan Oro habilitada',
     description:
-      'Para afiliados al Plan Oro, se cumple la espera de 30 días y queda disponible 1 traslado mensual hasta 3 km hasta el taller.',
+      'Para afiliados al Plan Oro, se cumple la espera de 60 días y queda disponible 1 traslado mensual hasta 3 km hasta el taller.',
   },
 ];
 

@@ -16,14 +16,18 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import {
+  AlertTriangle,
   ArrowLeft,
+  BellRing,
   CheckCircle2,
   Copy,
   CreditCard,
   Download,
   Lock,
   LogOut,
+  MessageCircle,
   Printer,
+  RefreshCw,
   Search,
   ShieldAlert,
   Trash2,
@@ -70,13 +74,28 @@ interface AdminPanelProps {
   onBackToSite: () => void;
 }
 
-const TODAY_ISO = new Date().toISOString().slice(0, 10);
+function getTodayIso(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+const TODAY_ISO = getTodayIso();
 
 function addDays(isoDate: string, days: number): string {
   const base = new Date(`${isoDate}T12:00:00`);
   if (Number.isNaN(base.getTime())) return isoDate;
   base.setDate(base.getDate() + days);
   return base.toISOString().slice(0, 10);
+}
+
+function diffDays(fromIso: string, toIso: string): number {
+  const from = new Date(`${fromIso}T12:00:00`);
+  const to = new Date(`${toIso}T12:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+  return Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function formatDateEs(isoDate: string): string {
@@ -105,6 +124,89 @@ function computeNextMemberNumber(existing: AdminMembership[]): string {
     }
   }
   return `MD-${String(maxSeq + 1).padStart(4, '0')}`;
+}
+
+interface ExpirationStatus {
+  expirationDate: string;
+  daysLeft: number;
+  isExpired: boolean;
+  isExpiringSoon: boolean;
+  label: string;
+}
+
+function getMembershipExpirationStatus(record: AdminMembership): ExpirationStatus {
+  const periodBase = record.paymentDate || record.joinedDate;
+  const expirationDate = addDays(periodBase, 30);
+  const daysLeft = diffDays(TODAY_ISO, expirationDate);
+  const isOverdueByDate = daysLeft < 0;
+  const isUnpaid = record.paymentStatus === 'pendiente';
+  const isExpired = isOverdueByDate || isUnpaid;
+  const isExpiringSoon = !isExpired && daysLeft <= 5;
+
+  let label = 'VIGENTE';
+  if (isOverdueByDate) {
+    const abs = Math.abs(daysLeft);
+    label = `VENCIDO HACE ${abs} ${abs === 1 ? 'DÍA' : 'DÍAS'}`;
+  } else if (isUnpaid) {
+    label = 'PAGO PENDIENTE / VENCIDO';
+  } else if (daysLeft === 0) {
+    label = 'VENCE HOY';
+  } else if (daysLeft <= 5) {
+    label = `VENCE EN ${daysLeft} ${daysLeft === 1 ? 'DÍA' : 'DÍAS'}`;
+  }
+
+  return {
+    expirationDate,
+    daysLeft,
+    isExpired,
+    isExpiringSoon,
+    label,
+  };
+}
+
+function normalizeWhatsappDigits(phone: string): string | null {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 8) return null;
+  if (digits.startsWith('0')) {
+    return `595${digits.slice(1)}`;
+  }
+  if (digits.length === 9 && digits.startsWith('9')) {
+    return `595${digits}`;
+  }
+  return digits;
+}
+
+function buildWhatsappExpirationUrl(
+  record: AdminMembership,
+  status: ExpirationStatus
+): string | null {
+  const waDigits = normalizeWhatsappDigits(record.phone);
+  if (!waDigits) return null;
+
+  const plan =
+    MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ?? MEMBERSHIP_PLANS[0];
+  const expFormatted = formatDateEs(status.expirationDate);
+  const amountFormatted = formatGuaranies(record.monthlyAmountGs);
+
+  const message = status.isExpired
+    ? [
+        `Hola ${record.ownerName}, te saludamos de *Mecánica Dakar — Club de Asistencia Mecánica*.`,
+        `Te informamos que tu membresía *${plan.name}* (Afiliado N° ${record.memberNumber} · Chapa ${record.plate}) se encuentra *vencida* desde el ${expFormatted}.`,
+        `Para reactivar tus beneficios en el taller, podés abonar la renovación mensual (${amountFormatted}) al +595 975 635 770 y enviarnos el comprobante por este medio. ¡Muchas gracias!`,
+      ].join('\n')
+    : [
+        `Hola ${record.ownerName}, te saludamos de *Mecánica Dakar — Club de Asistencia Mecánica*.`,
+        `Te recordamos que tu membresía *${plan.name}* (Afiliado N° ${record.memberNumber} · Chapa ${record.plate}) vence el *${expFormatted}*${
+          status.daysLeft === 0
+            ? ' (hoy)'
+            : status.daysLeft > 0
+              ? ` (en ${status.daysLeft} ${status.daysLeft === 1 ? 'día' : 'días'})`
+              : ''
+        }.`,
+        `Para mantener activos tus beneficios sin interrupciones, podés renovar tu período mensual (${amountFormatted}) al +595 975 635 770. ¡Te esperamos!`,
+      ].join('\n');
+
+  return `https://wa.me/${waDigits}?text=${encodeURIComponent(message)}`;
 }
 
 export function AdminPanel({ onBackToSite }: AdminPanelProps) {
@@ -137,7 +239,9 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
 
   // List filters & active card preview
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTab, setFilterTab] = useState<'all' | 'abonado' | 'pendiente' | PlanId>('all');
+  const [filterTab, setFilterTab] = useState<
+    'all' | 'vencido' | 'por_vencer' | 'abonado' | 'pendiente' | PlanId
+  >('all');
   const [selectedCardMember, setSelectedCardMember] = useState<AdminMembership | null>(null);
   const [modalCardMember, setModalCardMember] = useState<AdminMembership | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -263,11 +367,35 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
   const stats = useMemo(() => {
     const paid = memberships.filter((m) => m.paymentStatus === 'abonado');
     const monthlyRevenue = paid.reduce((acc, m) => acc + m.monthlyAmountGs, 0);
+    let expiredCount = 0;
+    let expiringSoonCount = 0;
+    for (const m of memberships) {
+      const st = getMembershipExpirationStatus(m);
+      if (st.isExpired) expiredCount += 1;
+      else if (st.isExpiringSoon) expiringSoonCount += 1;
+    }
     return {
       total: memberships.length,
       paidCount: paid.length,
       monthlyRevenue,
+      expiredCount,
+      expiringSoonCount,
     };
+  }, [memberships]);
+
+  const alertMembers = useMemo(() => {
+    return memberships
+      .map((record) => ({
+        record,
+        status: getMembershipExpirationStatus(record),
+      }))
+      .filter(({ status }) => status.isExpired || status.isExpiringSoon)
+      .sort((a, b) => {
+        if (a.status.isExpired !== b.status.isExpired) {
+          return a.status.isExpired ? -1 : 1;
+        }
+        return a.status.daysLeft - b.status.daysLeft;
+      });
   }, [memberships]);
 
   const handleCreateMembership = async (e: FormEvent) => {
@@ -422,6 +550,18 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
     }
   };
 
+  const handleRenewPaymentToday = async (record: AdminMembership) => {
+    try {
+      await updateDoc(doc(db, 'memberships', record.id), {
+        paymentStatus: 'abonado',
+        paymentDate: TODAY_ISO,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `memberships/${record.id}`);
+    }
+  };
+
   const handleDelete = async (record: AdminMembership) => {
     try {
       await deleteDoc(doc(db, 'memberships', record.id));
@@ -440,9 +580,9 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
   const copyCardText = async (record: AdminMembership) => {
     const plan =
       MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ?? MEMBERSHIP_PLANS[0];
-    const renewal = addDays(record.joinedDate, 30);
+    const renewal = addDays(record.paymentDate || record.joinedDate, 30);
     const carenciaEnd = addDays(record.joinedDate, 30);
-    const towReady = addDays(record.joinedDate, 30);
+    const towReady = addDays(record.joinedDate, 60);
     const letter =
       record.planId === 'basico' ? 'A' : record.planId === 'platino' ? 'B' : 'C';
 
@@ -455,7 +595,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
       `Vehículo: ${record.vehicleType} ${record.vehicleModel} · Chapa: ${record.plate}`,
       `Vencimiento período: ${formatDateEs(renewal)}`,
       `Carencia inicial (30 días): ${formatDateEs(carenciaEnd)}`,
-      plan.hasFreeTow ? `Grúa Oro (30 días): ${formatDateEs(towReady)}` : '',
+      plan.hasFreeTow ? `Grúa Oro (60 días): ${formatDateEs(towReady)}` : '',
       `Cobertura exclusiva dentro de Mecánica Dakar. Sin asistencia en ruta.`,
     ]
       .filter(Boolean)
@@ -509,6 +649,9 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
 
   const filteredMembers = useMemo(() => {
     return memberships.filter((m) => {
+      const expStatus = getMembershipExpirationStatus(m);
+      if (filterTab === 'vencido' && !expStatus.isExpired) return false;
+      if (filterTab === 'por_vencer' && !expStatus.isExpiringSoon) return false;
       if (filterTab === 'abonado' && m.paymentStatus !== 'abonado') return false;
       if (filterTab === 'pendiente' && m.paymentStatus !== 'pendiente') return false;
       if (
@@ -629,6 +772,22 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
               <p className="text-[11px] text-[#9AA0A9]">Socios abonados</p>
               <p className="font-display text-2xl font-bold text-[#F5B700] tabular-nums">
                 {stats.paidCount} / {stats.total}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-[#9AA0A9]">Pagos vencidos</p>
+              <p
+                className={`font-display text-2xl font-bold tabular-nums ${
+                  stats.expiredCount > 0 ? 'text-[#F87171]' : 'text-white'
+                }`}
+              >
+                {stats.expiredCount}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-[#9AA0A9]">Por vencer (≤5 días)</p>
+              <p className="font-display text-2xl font-bold text-[#F5B700] tabular-nums">
+                {stats.expiringSoonCount}
               </p>
             </div>
             <div>
@@ -932,7 +1091,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                 ? selectedCardMember.memberNumber
                 : memberNumber.trim().toUpperCase();
               const cardJoined = selectedCardMember
-                ? selectedCardMember.joinedDate
+                ? selectedCardMember.paymentDate || selectedCardMember.joinedDate
                 : joinedDate;
               const cardRenewal = addDays(cardJoined, 30);
               const cardParts = formatDateParts(cardRenewal);
@@ -1070,6 +1229,148 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
           </div>
         </div>
 
+        {/* Expiration Alerts & WhatsApp Reminder Panel */}
+        <div
+          className={`rounded-lg border p-5 sm:p-6 ${
+            stats.expiredCount > 0
+              ? 'bg-[#FEF2F2] border-[#EF4444]'
+              : alertMembers.length > 0
+                ? 'bg-[#FFFBEB] border-[#F59E0B]'
+                : 'bg-white border-[#E2E2DC]'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/10">
+            <div className="flex items-start gap-3">
+              {stats.expiredCount > 0 ? (
+                <AlertTriangle className="w-5 h-5 text-[#DC2626] shrink-0 mt-0.5" />
+              ) : (
+                <BellRing className="w-5 h-5 text-[#B45309] shrink-0 mt-0.5" />
+              )}
+              <div>
+                <h2 className="font-display text-2xl font-bold text-[#0A0B0D]">
+                  Avisos de vencimientos y cobros por WhatsApp
+                </h2>
+                <p className="text-xs text-[#4A4E55] mt-0.5">
+                  {alertMembers.length === 0
+                    ? 'Todos los afiliados están al día y sin vencimientos en los próximos 5 días.'
+                    : `${stats.expiredCount} vencido(s) en rojo y ${stats.expiringSoonCount} por vencer en los próximos 5 días. Enviá el aviso directo por WhatsApp al cliente.`}
+                </p>
+              </div>
+            </div>
+
+            {alertMembers.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {stats.expiredCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterTab('vencido')}
+                    className="px-3 py-1.5 text-xs font-bold bg-[#DC2626] text-white rounded hover:bg-[#B91C1C] transition-colors cursor-pointer"
+                  >
+                    Ver vencidos ({stats.expiredCount})
+                  </button>
+                )}
+                {stats.expiringSoonCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterTab('por_vencer')}
+                    className="px-3 py-1.5 text-xs font-bold bg-[#F5B700] text-[#0A0B0D] rounded hover:bg-[#FFD028] transition-colors cursor-pointer"
+                  >
+                    Por vencer ({stats.expiringSoonCount})
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {alertMembers.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {alertMembers.map(({ record, status }) => {
+                const plan =
+                  MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ??
+                  MEMBERSHIP_PLANS[0];
+                const waUrl = buildWhatsappExpirationUrl(record, status);
+
+                return (
+                  <div
+                    key={`alert-${record.id}`}
+                    className={`rounded-md border p-4 flex flex-col justify-between gap-3 ${
+                      status.isExpired
+                        ? 'bg-white border-[#EF4444]'
+                        : 'bg-white border-[#F59E0B]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                              status.isExpired
+                                ? 'bg-[#DC2626] text-white'
+                                : 'bg-[#F5B700] text-[#0A0B0D]'
+                            }`}
+                          >
+                            {status.label}
+                          </span>
+                          <span className="font-mono-tabular text-xs font-bold text-[#0A0B0D]">
+                            {record.memberNumber} · {record.plate}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-[#0A0B0D] mt-1.5">
+                          {record.ownerName}
+                        </p>
+                        <p className="text-xs text-[#52565E]">
+                          {plan.name} ({formatGuaranies(record.monthlyAmountGs)}) · Tel:{' '}
+                          <span className="font-mono-tabular font-semibold text-[#0A0B0D]">
+                            {record.phone}
+                          </span>
+                        </p>
+                        <p
+                          className={`text-xs font-mono-tabular font-semibold mt-1 ${
+                            status.isExpired ? 'text-[#B91C1C]' : 'text-[#92400E]'
+                          }`}
+                        >
+                          Vencimiento: {formatDateEs(status.expirationDate)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#EAEAE4]">
+                      {waUrl ? (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded transition-colors ${
+                            status.isExpired
+                              ? 'bg-[#DC2626] hover:bg-[#B91C1C] text-white'
+                              : 'bg-[#0A0B0D] hover:bg-[#1E2025] text-[#F5B700]'
+                          }`}
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                          Avisar por WhatsApp
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-[#B91C1C] font-medium">
+                          Teléfono sin formato válido para WhatsApp
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleRenewPaymentToday(record)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#0A0B0D] bg-[#F2F2EE] hover:bg-[#E5E5DF] rounded transition-colors cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Renovar hoy (+30d)
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Registered Affiliates Management Table */}
         <div className="bg-white border border-[#E2E2DC] rounded-lg p-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-[#EAEAE4]">
@@ -1078,7 +1379,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                 Nómina oficial de afiliados
               </h2>
               <p className="text-xs text-[#6A6E75] mt-0.5">
-                Hacé clic en cualquier afiliado para visualizar su tarjeta oficial o actualizar pagos, inspecciones y consumos.
+                Los clientes con pago vencido o pendiente se marcan en rojo. Hacé clic en Avisar por WhatsApp para enviar el recordatorio de vencimiento.
               </p>
             </div>
 
@@ -1097,6 +1398,8 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
               <div className="flex flex-wrap items-center gap-1 p-1 bg-[#F2F2EE] rounded-md border border-[#E5E5DF]">
                 {[
                   { id: 'all', label: 'Todos' },
+                  { id: 'vencido', label: `Vencidos (${stats.expiredCount})` },
+                  { id: 'por_vencer', label: `Por vencer (${stats.expiringSoonCount})` },
                   { id: 'abonado', label: 'Abonados' },
                   { id: 'pendiente', label: 'Pendientes' },
                   { id: 'oro', label: 'Oro' },
@@ -1109,8 +1412,12 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                     onClick={() => setFilterTab(tab.id as typeof filterTab)}
                     className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
                       filterTab === tab.id
-                        ? 'bg-[#0A0B0D] text-[#F5B700]'
-                        : 'text-[#52565E] hover:text-[#0A0B0D]'
+                        ? tab.id === 'vencido'
+                          ? 'bg-[#DC2626] text-white'
+                          : 'bg-[#0A0B0D] text-[#F5B700]'
+                        : tab.id === 'vencido' && stats.expiredCount > 0
+                          ? 'text-[#DC2626] hover:bg-[#FEE2E2]'
+                          : 'text-[#52565E] hover:text-[#0A0B0D]'
                     }`}
                   >
                     {tab.label}
@@ -1141,18 +1448,46 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                 const plan =
                   MEMBERSHIP_PLANS.find((p) => p.id === record.planId) ??
                   MEMBERSHIP_PLANS[0];
-                const renewal = addDays(record.joinedDate, 30);
+                const expStatus = getMembershipExpirationStatus(record);
+                const renewal = expStatus.expirationDate;
+                const waReminderUrl = buildWhatsappExpirationUrl(record, expStatus);
 
                 return (
                   <div
                     key={record.id}
-                    className="border border-[#E2E2DC] rounded-lg p-5 bg-[#FAF9F5]"
+                    className={`rounded-lg p-5 transition-colors ${
+                      expStatus.isExpired
+                        ? 'border-2 border-[#EF4444] bg-[#FEF2F2]'
+                        : expStatus.isExpiringSoon
+                          ? 'border-2 border-[#F59E0B] bg-[#FFFBEB]'
+                          : 'border border-[#E2E2DC] bg-[#FAF9F5]'
+                    }`}
                   >
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#E5E5DF]">
-                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                        <span className="font-mono-tabular text-base font-bold text-[#0A0B0D] bg-[#F5B700] px-2.5 py-0.5 rounded">
+                    <div
+                      className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b ${
+                        expStatus.isExpired ? 'border-[#FECACA]' : 'border-[#E5E5DF]'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <span
+                          className={`font-mono-tabular text-base font-bold px-2.5 py-0.5 rounded ${
+                            expStatus.isExpired
+                              ? 'bg-[#DC2626] text-white'
+                              : 'bg-[#F5B700] text-[#0A0B0D]'
+                          }`}
+                        >
                           {record.memberNumber}
                         </span>
+                        {expStatus.isExpired && (
+                          <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-[#DC2626] text-white">
+                            {expStatus.label}
+                          </span>
+                        )}
+                        {expStatus.isExpiringSoon && (
+                          <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-[#F5B700] text-[#0A0B0D]">
+                            {expStatus.label}
+                          </span>
+                        )}
                         <span className="font-mono-tabular text-sm font-bold text-[#0A0B0D]">
                           {record.plate}
                         </span>
@@ -1168,6 +1503,24 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {waReminderUrl && (
+                          <a
+                            href={waReminderUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
+                              expStatus.isExpired
+                                ? 'bg-[#DC2626] hover:bg-[#B91C1C] text-white'
+                                : expStatus.isExpiringSoon
+                                  ? 'bg-[#0A0B0D] hover:bg-[#1E2025] text-[#F5B700]'
+                                  : 'bg-[#15803D] hover:bg-[#166534] text-white'
+                            }`}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            Avisar WhatsApp
+                          </a>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
@@ -1220,31 +1573,56 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                      <div className="bg-white border border-[#E5E5DF] rounded p-3.5">
+                      <div
+                        className={`rounded p-3.5 border ${
+                          expStatus.isExpired
+                            ? 'bg-[#FFF5F5] border-[#FCA5A5]'
+                            : expStatus.isExpiringSoon
+                              ? 'bg-[#FEFCE8] border-[#FDE047]'
+                              : 'bg-white border-[#E5E5DF]'
+                        }`}
+                      >
                         <p className="text-[#6A6E75]">Pago y vencimiento</p>
                         <p
                           className={`mt-1 font-semibold ${
-                            record.paymentStatus === 'abonado'
-                              ? 'text-[#15803D]'
-                              : 'text-[#B91C1C]'
+                            expStatus.isExpired
+                              ? 'text-[#B91C1C]'
+                              : expStatus.isExpiringSoon
+                                ? 'text-[#B45309]'
+                                : 'text-[#15803D]'
                           }`}
                         >
                           {record.paymentStatus === 'abonado'
-                            ? `Abonado el ${formatDateEs(record.paymentDate)}`
+                            ? `Último pago: ${formatDateEs(record.paymentDate)}`
                             : 'Pendiente de pago'}
                         </p>
-                        <p className="mt-1 text-[11px] text-[#52565E] font-mono-tabular">
-                          Vence: {formatDateEs(renewal)}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePayment(record)}
-                          className="mt-2 text-xs font-semibold text-[#0A0B0D] underline decoration-[#F5B700] decoration-2 underline-offset-4 cursor-pointer"
+                        <p
+                          className={`mt-1 text-[11px] font-mono-tabular font-semibold ${
+                            expStatus.isExpired ? 'text-[#B91C1C]' : 'text-[#52565E]'
+                          }`}
                         >
-                          {record.paymentStatus === 'abonado'
-                            ? 'Marcar como pendiente'
-                            : 'Registrar pago abonado'}
-                        </button>
+                          Vence: {formatDateEs(renewal)} · {expStatus.label}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          {(expStatus.isExpired || expStatus.isExpiringSoon) && (
+                            <button
+                              type="button"
+                              onClick={() => handleRenewPaymentToday(record)}
+                              className="text-xs font-bold text-[#15803D] underline decoration-[#15803D] decoration-2 underline-offset-4 cursor-pointer"
+                            >
+                              Renovar hoy (+30d)
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePayment(record)}
+                            className="text-xs font-semibold text-[#0A0B0D] underline decoration-[#F5B700] decoration-2 underline-offset-4 cursor-pointer"
+                          >
+                            {record.paymentStatus === 'abonado'
+                              ? 'Marcar como pendiente'
+                              : 'Registrar pago abonado'}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="bg-white border border-[#E5E5DF] rounded p-3.5">
@@ -1417,7 +1795,12 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                   className="absolute bg-white rounded flex items-center justify-center text-[#0A0B0D] font-mono-tabular font-bold text-xs sm:text-base"
                 >
                   {(() => {
-                    const p = formatDateParts(addDays(modalCardMember.joinedDate, 30));
+                    const p = formatDateParts(
+                      addDays(
+                        modalCardMember.paymentDate || modalCardMember.joinedDate,
+                        30
+                      )
+                    );
                     return `${p.d} / ${p.m} / ${p.y}`;
                   })()}
                 </div>
@@ -1428,7 +1811,7 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
               <p className="text-xs text-[#C7CBD1] font-mono-tabular">
                 Carencia 30d: {formatDateEs(addDays(modalCardMember.joinedDate, 30))}
                 {modalCardMember.planId === 'oro'
-                  ? ` · Grúa 30d: ${formatDateEs(addDays(modalCardMember.joinedDate, 30))}`
+                  ? ` · Grúa 60d: ${formatDateEs(addDays(modalCardMember.joinedDate, 60))}`
                   : ''}
               </p>
 
@@ -1449,7 +1832,10 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                       plate: modalCardMember.plate,
                       planId: modalCardMember.planId,
                       memberNumber: modalCardMember.memberNumber,
-                      expirationDateIso: addDays(modalCardMember.joinedDate, 30),
+                      expirationDateIso: addDays(
+                        modalCardMember.paymentDate || modalCardMember.joinedDate,
+                        30
+                      ),
                     })
                   }
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white border border-white/20 rounded-md hover:bg-white/10 cursor-pointer"
@@ -1465,7 +1851,10 @@ export function AdminPanel({ onBackToSite }: AdminPanelProps) {
                       plate: modalCardMember.plate,
                       planId: modalCardMember.planId,
                       memberNumber: modalCardMember.memberNumber,
-                      expirationDateIso: addDays(modalCardMember.joinedDate, 30),
+                      expirationDateIso: addDays(
+                        modalCardMember.paymentDate || modalCardMember.joinedDate,
+                        30
+                      ),
                     })
                   }
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded-md cursor-pointer"
