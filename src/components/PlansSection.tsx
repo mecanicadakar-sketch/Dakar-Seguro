@@ -1,6 +1,7 @@
 import { Check, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { MEMBERSHIP_PLANS, PlanId, WORKSHOP_IMAGES } from '../data/membershipData';
+import { WavyCheckeredFlag } from './WavyCheckeredFlag';
 
 interface PlansSectionProps {
   selectedPlan: PlanId;
@@ -28,88 +29,56 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
 
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {MEMBERSHIP_PLANS.map((plan) => {
-            const isGold = plan.id === 'oro';
             const isSelected = selectedPlan === plan.id;
 
             return (
               <article
                 key={plan.id}
-                className={`relative overflow-hidden flex flex-col justify-between rounded-lg p-6 sm:p-7 transition-colors duration-150 ${
-                  isGold
-                    ? 'bg-[#0A0B0D] text-[#F5F5F2] border border-[#F5B700]/40'
-                    : 'bg-white text-[#0A0B0D] border border-[#E2E2DC]'
+                className={`relative overflow-hidden flex flex-col justify-between rounded-lg p-6 sm:p-7 bg-[#0A0B0D] text-[#F5F5F2] border transition-colors duration-150 ${
+                  isSelected
+                    ? 'border-[#F5B700] shadow-[0_0_0_1px_rgba(245,183,0,0.4)]'
+                    : 'border-[#F5B700]/35'
                 }`}
               >
-                {isGold && (
-                  <div
-                    aria-hidden="true"
-                    className="absolute top-0 right-0 w-32 h-16 overflow-hidden pointer-events-none"
-                  >
-                    <div className="w-36 h-14 checkered-flag-pattern rotate-[18deg] translate-x-5 -translate-y-4 opacity-90 border-b-2 border-[#F5B700]" />
-                  </div>
-                )}
+                <div
+                  aria-hidden="true"
+                  className="absolute top-0 right-0 w-36 h-20 overflow-hidden pointer-events-none"
+                >
+                  <WavyCheckeredFlag className="w-full h-full" />
+                </div>
 
-                <div>
-                  <div
-                    className={`flex items-baseline justify-between gap-4 pb-4 border-b ${
-                      isGold ? 'border-white/10' : 'border-[#EAEAE4]'
-                    }`}
-                  >
-                    <div>
-                      <p
-                        className={`text-xs font-semibold ${
-                          isGold ? 'text-[#F5B700]' : 'text-[#8A6200]'
-                        }`}
-                      >
+                <div className="relative z-10">
+                  <div className="pb-4 border-b border-white/10 pr-24">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-semibold text-[#F5B700]">
                         {plan.indexLabel} · {plan.tier}
                       </p>
-                      <h3 className="font-display text-3xl font-bold tracking-tight mt-1">
-                        {plan.name}
-                      </h3>
+                      {isSelected && (
+                        <span className="text-[11px] font-semibold text-[#F5B700] underline decoration-[#F5B700] decoration-2 underline-offset-4">
+                          · Seleccionado
+                        </span>
+                      )}
                     </div>
-
-                    {isSelected && (
-                      <span
-                        className={`text-xs font-semibold ${
-                          isGold ? 'text-[#F5B700]' : 'text-[#0A0B0D] underline decoration-[#F5B700] decoration-2 underline-offset-4'
-                        }`}
-                      >
-                        Seleccionado
-                      </span>
-                    )}
+                    <h3 className="font-display text-3xl font-bold tracking-tight mt-1 text-white">
+                      {plan.name}
+                    </h3>
                   </div>
 
                   <div className="mt-5">
-                    <p
-                      className={`font-mono-tabular text-3xl sm:text-[2rem] font-semibold tracking-tight ${
-                        isGold ? 'text-[#F5B700]' : 'text-[#0A0B0D]'
-                      }`}
-                    >
+                    <p className="font-mono-tabular text-3xl sm:text-[2rem] font-semibold tracking-tight text-[#F5B700]">
                       {plan.formattedPrice}
                     </p>
-                    <p
-                      className={`text-xs mt-1 ${
-                        isGold ? 'text-[#A6ACB5]' : 'text-[#6A6E75]'
-                      }`}
-                    >
+                    <p className="text-xs mt-1 text-[#A6ACB5]">
                       Por mes · Por vehículo
                     </p>
                   </div>
 
-                  <p
-                    className={`mt-4 text-sm leading-relaxed ${
-                      isGold ? 'text-[#C7CBD1]' : 'text-[#4A4E55]'
-                    }`}
-                  >
+                  <p className="mt-4 text-sm leading-relaxed text-[#C7CBD1]">
                     {plan.summary}
                   </p>
 
                   {plan.inheritsFrom && (
-                    <p
-                      className={`mt-5 text-xs font-semibold ${
-                        isGold ? 'text-[#F5B700]' : 'text-[#0A0B0D]'
-                      }`}
-                    >
+                    <p className="mt-5 text-xs font-semibold text-[#F5B700]">
                       {plan.inheritsFrom}
                     </p>
                   )}
@@ -121,30 +90,20 @@ export function PlansSection({ selectedPlan, onChoosePlan }: PlansSectionProps) 
                         className="flex items-start gap-2.5 text-sm leading-snug"
                       >
                         <Check
-                          className={`w-4 h-4 shrink-0 mt-0.5 ${
-                            isGold ? 'text-[#F5B700]' : 'text-[#B37E00]'
-                          }`}
+                          className="w-4 h-4 shrink-0 mt-0.5 text-[#F5B700]"
                           aria-hidden="true"
                         />
-                        <span className={isGold ? 'text-[#E8EAEF]' : 'text-[#2C2F35]'}>
-                          {benefit}
-                        </span>
+                        <span className="text-[#E8EAEF]">{benefit}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="mt-8 pt-5 border-t border-current/10">
+                <div className="relative z-10 mt-8 pt-5 border-t border-white/10">
                   <button
                     type="button"
                     onClick={() => onChoosePlan(plan.id)}
-                    className={`w-full py-3 px-4 rounded-md text-sm font-bold transition-colors duration-150 whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5B700] ${
-                      isGold
-                        ? 'bg-[#F5B700] text-[#0A0B0D] hover:bg-[#FFD028]'
-                        : isSelected
-                          ? 'bg-[#0A0B0D] text-[#F5B700] hover:bg-[#1E2025]'
-                          : 'bg-[#F0EFEA] text-[#0A0B0D] hover:bg-[#F5B700]'
-                    }`}
+                    className="w-full py-3 px-4 rounded-md text-sm font-bold bg-[#F5B700] text-[#0A0B0D] hover:bg-[#FFD028] transition-colors duration-150 whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5B700]"
                   >
                     Elegir {plan.name}
                   </button>

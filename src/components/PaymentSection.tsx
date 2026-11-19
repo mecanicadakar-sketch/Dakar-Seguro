@@ -21,6 +21,7 @@ export function PaymentSection({
   onOpenAdmin,
 }: PaymentSectionProps) {
   const [clientHint, setClientHint] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
   const [vehicleHint, setVehicleHint] = useState('');
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(false);
@@ -38,11 +39,12 @@ export function PaymentSection({
       `Hola Mecánica Dakar, quiero abonar la membresía del Club de Asistencia Mecánica:`,
       `Plan elegido: ${activePlan.name} (${activePlan.formattedPrice}/mes)`,
       clientHint.trim() ? `Titular: ${clientHint.trim()}` : null,
+      clientPhone.trim() ? `Teléfono: ${clientPhone.trim()}` : null,
       vehicleHint.trim() ? `Vehículo / Chapa: ${vehicleHint.trim()}` : null,
-      `Adjunto comprobante de pago para que el administrador registre el vehículo y emita el N° de afiliado.`,
+      `Envío mis datos para realizar el pago y solicitar el registro del vehículo y emisión del N° de afiliado.`,
     ].filter(Boolean);
     return lines.join('\n');
-  }, [activePlan, clientHint, vehicleHint]);
+  }, [activePlan, clientHint, clientPhone, vehicleHint]);
 
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER_RAW}?text=${encodeURIComponent(
     whatsappMessage
@@ -162,18 +164,18 @@ export function PaymentSection({
                 </div>
               </div>
 
-              {/* Optional reference fields for the WhatsApp payment message */}
+              {/* Client reference fields for the WhatsApp payment message */}
               <div className="pt-2 space-y-3">
                 <p className="text-xs text-[#C7CBD1]">
-                  Opcional: agregá tu referencia para incluirla en el mensaje de comprobante por WhatsApp.
+                  Cargá tus datos de referencia para enviarlos por WhatsApp y coordinar el pago:
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                   <div>
                     <label
                       htmlFor="pay-client-hint"
                       className="block text-[11px] font-medium text-[#A6ACB5] mb-1"
                     >
-                      Nombre del titular (referencia)
+                      Nombre del titular
                     </label>
                     <input
                       id="pay-client-hint"
@@ -186,10 +188,26 @@ export function PaymentSection({
                   </div>
                   <div>
                     <label
+                      htmlFor="pay-client-phone"
+                      className="block text-[11px] font-medium text-[#A6ACB5] mb-1"
+                    >
+                      Número de teléfono del cliente
+                    </label>
+                    <input
+                      id="pay-client-phone"
+                      type="tel"
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Ej: 0981 000 000"
+                      className="w-full px-3 py-2 text-xs font-mono-tabular bg-[#14161A] text-white border border-white/15 rounded-md focus:outline-none focus:border-[#F5B700]"
+                    />
+                  </div>
+                  <div>
+                    <label
                       htmlFor="pay-vehicle-hint"
                       className="block text-[11px] font-medium text-[#A6ACB5] mb-1"
                     >
-                      Vehículo y chapa (referencia)
+                      Vehículo y chapa
                     </label>
                     <input
                       id="pay-vehicle-hint"
@@ -211,7 +229,7 @@ export function PaymentSection({
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded-md transition-colors whitespace-nowrap"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  Enviar comprobante al {WHATSAPP_NUMBER_DISPLAY}
+                  Enviar datos para el pago al {WHATSAPP_NUMBER_DISPLAY}
                 </a>
 
                 <button

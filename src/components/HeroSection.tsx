@@ -1,6 +1,7 @@
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { WORKSHOP_IMAGES } from '../data/membershipData';
+import { WavyCheckeredFlag } from './WavyCheckeredFlag';
 
 interface HeroSectionProps {
   onExplorePlans: () => void;
@@ -38,17 +39,15 @@ export function HeroSection({ onExplorePlans, onViewRules }: HeroSectionProps) {
       id="inicio"
       className="relative overflow-hidden bg-[#0A0B0D] text-[#F5F5F2] border-b border-white/10"
     >
-      {/* Top-right checkered racing flag & yellow curve accent matching club card */}
+      {/* Top-right wavy checkered racing flag & gold sweep matching club card */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-0 right-0 w-80 sm:w-[26rem] h-48 overflow-hidden"
+        className="pointer-events-none absolute top-0 right-0 w-[340px] sm:w-[460px] lg:w-[560px] h-[200px] sm:h-[260px] lg:h-[310px] overflow-hidden"
       >
-        <div
-          className="absolute -top-10 -right-12 w-96 h-36 checkered-flag-pattern rotate-[18deg] opacity-95 border-b-4 border-[#F5B700]"
-        />
+        <WavyCheckeredFlag className="w-full h-full" />
       </div>
 
-      <div className="relative max-w-[1200px] mx-auto px-4 sm:px-6 py-12 lg:py-16">
+      <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 py-12 lg:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
           <div className="lg:col-span-6 flex flex-col justify-between py-2">
             <div>
