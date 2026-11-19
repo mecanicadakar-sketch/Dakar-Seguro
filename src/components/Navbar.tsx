@@ -36,8 +36,13 @@ export function Navbar({
             alt="Logo Mecánica Dakar"
             className="h-14 w-14 object-contain bg-black rounded shrink-0"
           />
-          <span className="font-display text-3xl font-bold tracking-tight text-white">
-            MECANICA <span className="text-[#F5B700]">DAKAR</span>
+          <span className="flex flex-col leading-none">
+            <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white uppercase">
+              Club <span className="text-[#F5B700]">Dakar</span>
+            </span>
+            <span className="text-xs font-semibold tracking-wider text-[#C7CBD1] uppercase mt-0.5">
+              Membresías
+            </span>
           </span>
         </button>
 
