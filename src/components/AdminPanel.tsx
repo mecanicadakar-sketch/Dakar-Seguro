@@ -65,6 +65,7 @@ interface AdminMembership {
   phone: string;
   vehicleType: 'Automóvil' | 'Camioneta' | 'Utilitario';
   vehicleModel: string;
+  vehicleYear: string;
   plate: string;
   joinedDate: string;
   inspectionApproved: boolean;
@@ -125,16 +126,30 @@ function formatDateParts(isoDate: string): { d: string; m: string; y: string } {
   return { d: parts[2], m: parts[1], y: parts[0] };
 }
 
-function computeNextMemberNumber(existing: AdminMembership[]): string {
-  let maxSeq = 0;
-  for (const item of existing) {
-    const match = item.memberNumber.match(/(\d+)$/);
-    if (match) {
-      const n = parseInt(match[1], 10);
-      if (!Number.isNaN(n) && n > maxSeq) maxSeq = n;
+const MEMBER_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+function generateRandomMemberNumber(existing: AdminMembership[]): string {
+  const existingSet = new Set(
+    existing.map((item) => item.memberNumber.trim().toUpperCase())
+  );
+
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const l1 =
+      MEMBER_CODE_LETTERS[
+        Math.floor(Math.random() * MEMBER_CODE_LETTERS.length)
+      ];
+    const l2 =
+      MEMBER_CODE_LETTERS[
+        Math.floor(Math.random() * MEMBER_CODE_LETTERS.length)
+      ];
+    const randomNum = String(Math.floor(1000 + Math.random() * 9000));
+    const candidate = `MD-${l1}${l2}${randomNum}`;
+    if (!existingSet.has(candidate)) {
+      return candidate;
     }
   }
-  return `MD-${String(maxSeq + 1).padStart(4, '0')}`;
+
+  return `MD-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 }
 
 interface ExpirationStatus {
@@ -239,13 +254,16 @@ export function AdminPanel({
   // Create Affiliate Form State
   const [planId, setPlanId] = useState<PlanId>('platino');
   const [paymentConfirmed, setPaymentConfirmed] = useState(true);
-  const [memberNumber, setMemberNumber] = useState('MD-0001');
+  const [memberNumber, setMemberNumber] = useState(() =>
+    generateRandomMemberNumber([])
+  );
   const [paymentDate, setPaymentDate] = useState(TODAY_ISO);
   const [joinedDate, setJoinedDate] = useState(TODAY_ISO);
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
   const [vehicleType, setVehicleType] = useState<'Automóvil' | 'Camioneta' | 'Utilitario'>('Automóvil');
   const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleYear, setVehicleYear] = useState('');
   const [plate, setPlate] = useState('');
   const [inspectionApproved, setInspectionApproved] = useState(true);
   const [notes, setNotes] = useState('');
@@ -334,6 +352,7 @@ export function AdminPanel({
             vehicleType:
               (data.vehicleType as AdminMembership['vehicleType']) ?? 'Automóvil',
             vehicleModel: String(data.vehicleModel ?? ''),
+            vehicleYear: String(data.vehicleYear ?? ''),
             plate: String(data.plate ?? ''),
             joinedDate: String(data.joinedDate ?? TODAY_ISO),
             inspectionApproved: Boolean(data.inspectionApproved),
@@ -350,8 +369,8 @@ export function AdminPanel({
         });
         setMemberships(rows);
         setMemberNumber((current) => {
-          if (!current || current === 'MD-0001' || rows.some((r) => r.memberNumber === current)) {
-            return computeNextMemberNumber(rows);
+          if (!current || rows.some((r) => r.memberNumber === current)) {
+            return generateRandomMemberNumber(rows);
           }
           return current;
         });
@@ -379,8 +398,22 @@ export function AdminPanel({
         );
       }
     } catch (err) {
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code?: unknown }).code ?? '')
+          : '';
       const msg = err instanceof Error ? err.message : 'No se pudo iniciar sesión con Google.';
-      if (!msg.includes('popup-closed-by-user')) {
+      if (code === 'auth/unauthorized-domain' || msg.includes('auth/unauthorized-domain')) {
+        const currentHost =
+          typeof window !== 'undefined' ? window.location.hostname : 'este dominio';
+        setBlockedEmailMessage(
+          `El dominio "${currentHost}" aún no está autorizado en Firebase Authentication. Agregalo en Firebase Console → Authentication → Settings → Authorized domains para habilitar el ingreso con Google.`
+        );
+      } else if (code === 'auth/popup-blocked' || msg.includes('auth/popup-blocked')) {
+        setBlockedEmailMessage(
+          'El navegador bloqueó la ventana emergente de Google. Habilitá las ventanas emergentes para este sitio e intentá nuevamente.'
+        );
+      } else if (!msg.includes('popup-closed-by-user')) {
         setBlockedEmailMessage(`Error al autenticar con Google: ${msg}`);
       }
     } finally {
@@ -468,12 +501,13 @@ export function AdminPanel({
     const cleanOwner = ownerName.trim();
     const cleanPhone = phone.trim();
     const cleanModel = vehicleModel.trim();
+    const cleanYear = vehicleYear.trim();
     const cleanPlate = plate.trim().toUpperCase();
     const cleanNotes = notes.trim().slice(0, 300);
 
     if (!/^[A-Z0-9-]{4,24}$/.test(cleanMemberNum)) {
       setFormError(
-        'El número de afiliado debe tener entre 4 y 24 caracteres (solo letras mayúsculas, números y guiones, ej: MD-0001).'
+        'El número de afiliado debe tener entre 4 y 24 caracteres (solo letras mayúsculas, números y guiones, ej: MD-KX4829).'
       );
       return;
     }
@@ -492,7 +526,18 @@ export function AdminPanel({
       return;
     }
     if (cleanModel.length < 2 || cleanModel.length > 100) {
-      setFormError('Indicá la marca, modelo y año del vehículo.');
+      setFormError('Indicá la marca y modelo del vehículo.');
+      return;
+    }
+    const maxYear = new Date().getFullYear() + 1;
+    if (
+      !/^(19|20)\d{2}$/.test(cleanYear) ||
+      Number(cleanYear) < 1950 ||
+      Number(cleanYear) > maxYear
+    ) {
+      setFormError(
+        `Ingresá un año válido del vehículo (4 dígitos entre 1950 y ${maxYear}).`
+      );
       return;
     }
     if (!/^[A-Z0-9 -]{4,20}$/.test(cleanPlate)) {
@@ -521,6 +566,7 @@ export function AdminPanel({
         phone: cleanPhone,
         vehicleType,
         vehicleModel: cleanModel,
+        vehicleYear: cleanYear,
         plate: cleanPlate,
         joinedDate,
         inspectionApproved,
@@ -550,6 +596,7 @@ export function AdminPanel({
         phone: cleanPhone,
         vehicleType,
         vehicleModel: cleanModel,
+        vehicleYear: cleanYear,
         plate: cleanPlate,
         joinedDate,
         inspectionApproved,
@@ -569,9 +616,13 @@ export function AdminPanel({
         `Afiliado Nº ${cleanMemberNum} emitido correctamente para ${cleanOwner} (${cleanPlate}) · ${selectedPlanObj.name} abonado.`
       );
 
+      setMemberNumber(
+        generateRandomMemberNumber([...memberships, createdPreview])
+      );
       setOwnerName('');
       setPhone('');
       setVehicleModel('');
+      setVehicleYear('');
       setPlate('');
       setNotes('');
     } catch (error) {
@@ -835,7 +886,9 @@ export function AdminPanel({
       `Estado de pago: ${record.paymentStatus === 'abonado' ? 'ABONADO' : 'PENDIENTE'} (${formatDateEs(record.paymentDate)})`,
       `Plan: ${plan.name} (Opción ${letter}) · ${plan.formattedPrice}/mes`,
       `Titular: ${record.ownerName} · Tel: ${record.phone}`,
-      `Vehículo: ${record.vehicleType} ${record.vehicleModel} · Chapa: ${record.plate}`,
+      `Vehículo: ${record.vehicleType} ${record.vehicleModel}${
+        record.vehicleYear ? ` (${record.vehicleYear})` : ''
+      } · Chapa: ${record.plate}`,
       `Vencimiento período: ${formatDateEs(renewal)}`,
       `Carencia inicial (30 días): ${formatDateEs(carenciaEnd)}`,
       plan.hasFreeTow ? `Grúa (${plan.name} · 60 días): ${formatDateEs(towReady)}` : '',
@@ -916,7 +969,8 @@ export function AdminPanel({
         m.memberNumber.toLowerCase().includes(q) ||
         m.plate.toLowerCase().includes(q) ||
         m.ownerName.toLowerCase().includes(q) ||
-        m.vehicleModel.toLowerCase().includes(q)
+        m.vehicleModel.toLowerCase().includes(q) ||
+        m.vehicleYear.toLowerCase().includes(q)
       );
     });
   }, [memberships, filterTab, searchTerm]);
@@ -1116,7 +1170,7 @@ export function AdminPanel({
                 Crear número de afiliado por plan abonado
               </h2>
               <p className="text-xs text-[#52565E] mt-1">
-                Confirmá el pago del cliente, generá el N° de afiliado correlativo y guardalo en la base de datos del taller.
+                Confirmá el pago del cliente, generá el código y número aleatorio de afiliado y guardalo en la base de datos del taller.
               </p>
             </div>
 
@@ -1175,15 +1229,17 @@ export function AdminPanel({
                       type="text"
                       value={memberNumber}
                       onChange={(e) => setMemberNumber(e.target.value.toUpperCase())}
-                      placeholder="MD-0001"
+                      placeholder="MD-KX4829"
                       className="w-full px-3 py-2 text-sm font-mono-tabular font-bold uppercase bg-white border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
                     />
                     <button
                       type="button"
-                      onClick={() => setMemberNumber(computeNextMemberNumber(memberships))}
+                      onClick={() =>
+                        setMemberNumber(generateRandomMemberNumber(memberships))
+                      }
                       className="px-2.5 py-2 text-xs font-semibold bg-[#0A0B0D] text-[#F5B700] rounded-md whitespace-nowrap shrink-0 hover:bg-[#1E2025] cursor-pointer"
                     >
-                      Auto
+                      Aleatorio
                     </button>
                   </div>
                 </div>
@@ -1245,7 +1301,7 @@ export function AdminPanel({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
                   htmlFor="admin-vtype"
@@ -1279,8 +1335,29 @@ export function AdminPanel({
                   type="text"
                   value={vehicleModel}
                   onChange={(e) => setVehicleModel(e.target.value)}
-                  placeholder="Ej: Toyota Hilux 2022"
+                  placeholder="Ej: Toyota Hilux"
                   className="w-full px-3 py-2 text-sm bg-[#FAF9F7] border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="admin-vyear"
+                  className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                >
+                  Año del vehículo
+                </label>
+                <input
+                  id="admin-vyear"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={vehicleYear}
+                  onChange={(e) =>
+                    setVehicleYear(e.target.value.replace(/\D/g, '').slice(0, 4))
+                  }
+                  placeholder="Ej: 2022"
+                  className="w-full px-3 py-2 text-sm font-mono-tabular bg-[#FAF9F7] border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
                 />
               </div>
 
@@ -1464,7 +1541,7 @@ export function AdminPanel({
                     }`}
                   >
                     <img
-                      src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_ee8c3949.png"
+                      src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png"
                       alt="Tarjeta oficial Club de Asistencia Mecánica Mecánica Dakar"
                       className="w-full h-full object-cover"
                     />
@@ -1983,7 +2060,8 @@ export function AdminPanel({
                           {record.ownerName}
                         </span>
                         <span className="text-xs text-[#52565E]">
-                          {record.vehicleType} {record.vehicleModel} · Tel: {record.phone}
+                          {record.vehicleType} {record.vehicleModel}
+                          {record.vehicleYear ? ` (${record.vehicleYear})` : ''} · Tel: {record.phone}
                         </span>
                         <span className="text-xs font-semibold text-[#8A6200]">
                           {plan.name} ({formatGuaranies(record.monthlyAmountGs)})
@@ -2344,7 +2422,7 @@ export function AdminPanel({
             <div className="p-5">
               <div className="print-card-target relative w-full aspect-[1672/940] rounded-xl overflow-hidden border border-[#262930] bg-[#0A0B0D] select-none">
                 <img
-                  src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_ee8c3949.png"
+                  src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png"
                   alt={`Tarjeta oficial de ${modalCardMember.ownerName}`}
                   className="w-full h-full object-cover"
                 />

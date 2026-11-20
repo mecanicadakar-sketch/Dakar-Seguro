@@ -21,7 +21,7 @@ export async function downloadClubCardPng(data: PrintableCardData): Promise<void
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
     img.onerror = () => reject(new Error('No se pudo cargar la imagen base de la tarjeta.'));
-    img.src = '/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_ee8c3949.png';
+    img.src = '/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png';
   });
 
   const width = img.naturalWidth || 1672;

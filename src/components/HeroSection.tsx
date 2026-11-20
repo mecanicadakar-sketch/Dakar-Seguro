@@ -61,20 +61,13 @@ export function HeroSection({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
           <div className="lg:col-span-6 flex flex-col justify-between py-2">
             <div>
-              <div className="flex items-center gap-5 mb-6">
-                <img
-                  src="/assets/aistudio/Logo-Mecanica-Dakar_fcd6213a.png"
-                  alt="Logo oficial Mecánica Dakar"
-                  className="h-28 w-28 sm:h-36 sm:w-36 object-contain bg-black rounded-lg shrink-0"
-                />
-                <div>
-                  <p className="font-display text-4xl sm:text-5xl lg:text-[3.35rem] font-bold tracking-tight text-white leading-none">
-                    MECANICA <span className="text-[#F5B700]">DAKAR</span>
-                  </p>
-                  <p className="mt-2 text-base sm:text-lg font-semibold text-[#F5B700] tracking-wide">
-                    Club de Asistencia Mecánica
-                  </p>
-                </div>
+              <div className="mb-6">
+                <p className="font-display text-4xl sm:text-5xl lg:text-[3.35rem] font-bold tracking-tight text-white leading-none">
+                  MECANICA <span className="text-[#F5B700]">DAKAR</span>
+                </p>
+                <p className="mt-2 text-base sm:text-lg font-semibold text-[#F5B700] tracking-wide">
+                  Club de Asistencia Mecánica
+                </p>
               </div>
 
               <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] font-bold leading-[1.06] tracking-tight text-white text-balance">

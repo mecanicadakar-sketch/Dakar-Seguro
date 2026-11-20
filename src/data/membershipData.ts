@@ -45,6 +45,8 @@ export const WORKSHOP_IMAGES = {
   hero: '/src/assets/images/hero_dakar_workshop_1795086235058.jpg',
   diagnostic: '/src/assets/images/diagnostic_scan_detail_1795086235355.jpg',
   inspection: '/src/assets/images/preventive_brake_inspection_1795086235435.jpg',
+  lights: '/src/assets/images/headlight_bulb_inspection_1795174667335.jpg',
+  fluids: '/src/assets/images/engine_fluids_inspection_1795174666713.jpg',
 };
 
 export const MEMBERSHIP_PLANS: MembershipPlan[] = [

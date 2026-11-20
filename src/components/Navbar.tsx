@@ -26,22 +26,22 @@ export function Navbar({
 
   return (
     <header className="sticky top-0 z-40 bg-[#0A0B0D]/95 backdrop-blur-sm border-b border-white/10 text-[#F5F5F2]">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4 lg:gap-8">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 min-h-24 lg:min-h-[108px] py-2 flex items-center justify-between gap-3 lg:gap-6">
         <button
           type="button"
           onClick={() => onNavigatePublic('inicio')}
-          className="flex items-center gap-3.5 whitespace-nowrap shrink-0 text-left cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#F5B700]"
+          className="flex items-center gap-3.5 sm:gap-4 whitespace-nowrap shrink-0 text-left cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#F5B700]"
         >
           <img
             src="/assets/aistudio/Logo-Mecanica-Dakar_fcd6213a.png"
             alt="Logo Mecánica Dakar"
-            className="h-14 w-14 object-contain bg-black rounded shrink-0"
+            className="h-16 w-16 sm:h-[76px] sm:w-[76px] lg:h-[88px] lg:w-[88px] object-contain bg-black rounded-md shrink-0"
           />
           <span className="flex flex-col leading-none">
-            <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white uppercase">
+            <span className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight text-white uppercase leading-none">
               Club <span className="text-[#F5B700]">Dakar</span>
             </span>
-            <span className="text-xs font-semibold tracking-wider text-[#C7CBD1] uppercase mt-0.5">
+            <span className="text-xs sm:text-sm font-semibold tracking-wider text-[#C7CBD1] uppercase mt-1">
               Membresías
             </span>
           </span>
@@ -49,7 +49,7 @@ export function Navbar({
 
         <nav
           aria-label="Navegación principal"
-          className="hidden md:flex items-center gap-4 lg:gap-6 text-xs lg:text-sm font-medium text-[#D6D9DF]"
+          className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs xl:text-sm font-medium text-[#D6D9DF]"
         >
           {navItems.map((item) => (
             <button
@@ -88,7 +88,7 @@ export function Navbar({
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
-            className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-md border border-white/15 text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="lg:hidden inline-flex items-center justify-center w-11 h-11 rounded-md border border-white/15 text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -98,7 +98,7 @@ export function Navbar({
       <div aria-hidden="true" className="h-5 w-full checkered-flag-strip opacity-90" />
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-white/10 bg-[#0A0B0D] px-4 py-4 space-y-2">
+        <div className="lg:hidden border-t border-white/10 bg-[#0A0B0D] px-4 py-4 space-y-2">
           {navItems.map((item) => (
             <button
               key={item.id}

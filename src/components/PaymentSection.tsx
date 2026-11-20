@@ -1,10 +1,11 @@
-import { ArrowRight, Check, Copy, Lock, MessageCircle, Phone } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowRight, Check, Copy, Lock, MessageCircle, Phone } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   formatGuaranies,
   MembershipPlan,
   PlanId,
 } from '../data/membershipData';
+import { ToastNotification } from './ToastNotification';
 
 interface PaymentSectionProps {
   plans: MembershipPlan[];
@@ -23,11 +24,20 @@ export function PaymentSection({
   onOpenAdmin,
 }: PaymentSectionProps) {
   const [paymentModality, setPaymentModality] = useState<'mensual' | 'anual'>('mensual');
-  const [clientHint, setClientHint] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [vehicleHint, setVehicleHint] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [vehicleType, setVehicleType] = useState<'Automóvil' | 'Camioneta' | 'Utilitario'>('Automóvil');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleYear, setVehicleYear] = useState('');
+  const [plate, setPlate] = useState('');
+  const [inspectionNotes, setInspectionNotes] = useState('');
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(false);
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(
+    null
+  );
+
+  const dismissToast = useCallback(() => setToast(null), []);
 
   const activePlan = useMemo(
     () => plans.find((p) => p.id === selectedPlan) ?? plans[0],
@@ -44,17 +54,40 @@ export function PaymentSection({
           })`
         : `Mensual anticipado (${activePlan.formattedPrice}/mes)`;
 
+    const vehicleDetails = [
+      vehicleType,
+      vehicleModel.trim() || null,
+      vehicleYear.trim() ? `(${vehicleYear.trim()})` : null,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     const lines = [
       `Hola Mecánica Dakar, quiero abonar la membresía del Club de Asistencia Mecánica:`,
       `Plan elegido: ${activePlan.name} (Plan ${planCode})`,
       `Modalidad de pago: ${modalityLabel}`,
-      clientHint.trim() ? `Titular: ${clientHint.trim()}` : null,
-      clientPhone.trim() ? `Teléfono: ${clientPhone.trim()}` : null,
-      vehicleHint.trim() ? `Vehículo / Chapa: ${vehicleHint.trim()}` : null,
+      ownerName.trim() ? `Titular: ${ownerName.trim()}` : null,
+      phone.trim() ? `Teléfono / WhatsApp: ${phone.trim()}` : null,
+      `Vehículo: ${vehicleDetails}`,
+      plate.trim() ? `Chapa: ${plate.trim().toUpperCase()}` : null,
+      inspectionNotes.trim()
+        ? `Observación de inspección: ${inspectionNotes.trim()}`
+        : null,
       `Envío mis datos para realizar el pago y solicitar el registro del vehículo y emisión del N° de afiliado.`,
     ].filter(Boolean);
     return lines.join('\n');
-  }, [activePlan, planCode, paymentModality, clientHint, clientPhone, vehicleHint]);
+  }, [
+    activePlan,
+    planCode,
+    paymentModality,
+    ownerName,
+    phone,
+    vehicleType,
+    vehicleModel,
+    vehicleYear,
+    plate,
+    inspectionNotes,
+  ]);
 
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER_RAW}?text=${encodeURIComponent(
     whatsappMessage
@@ -64,6 +97,10 @@ export function PaymentSection({
     try {
       await navigator.clipboard.writeText(`+${WHATSAPP_NUMBER_RAW}`);
       setCopiedPhone(true);
+      setToast({
+        title: 'Número copiado',
+        message: `El número ${WHATSAPP_NUMBER_DISPLAY} se copió al portapapeles.`,
+      });
       setTimeout(() => setCopiedPhone(false), 2000);
     } catch {
       // Clipboard blocked
@@ -74,10 +111,22 @@ export function PaymentSection({
     try {
       await navigator.clipboard.writeText(whatsappMessage);
       setCopiedMessage(true);
+      setToast({
+        title: 'Mensaje copiado',
+        message:
+          'Los datos de tu membresía se copiaron al portapapeles listos para pegar en WhatsApp.',
+      });
       setTimeout(() => setCopiedMessage(false), 2000);
     } catch {
       // Clipboard blocked
     }
+  };
+
+  const handleSendWhatsapp = () => {
+    setToast({
+      title: 'Mensaje enviado a WhatsApp',
+      message: `Se preparó tu solicitud de ${activePlan.name} para enviar al ${WHATSAPP_NUMBER_DISPLAY}.`,
+    });
   };
 
   return (
@@ -102,6 +151,26 @@ export function PaymentSection({
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Plan Selection + Payment Instructions & Proof Delivery */}
           <div className="lg:col-span-7 min-w-0 bg-white border border-[#E2E2DC] rounded-lg p-4 sm:p-7 space-y-6">
+            <div className="rounded-lg bg-[#0A0B0D] border-2 border-[#F5B700] px-4 py-3.5 sm:px-5 sm:py-4 flex items-center justify-between gap-4 shadow-sm">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#F5B700]">
+                  Paso 1 · Elección obligatoria
+                </p>
+                <p className="font-display text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight mt-0.5">
+                  Seleccione el plan que desea abonar
+                </p>
+                <p className="text-xs sm:text-sm text-[#E4E6EB] mt-1">
+                  Hacé clic sobre <strong className="text-white">Plan Básico</strong>, <strong className="text-white">Plan Platino</strong> o <strong className="text-white">Plan Oro</strong> para actualizar el monto y tus datos.
+                </p>
+              </div>
+              <div
+                aria-hidden="true"
+                className="w-9 h-9 rounded-md bg-[#F5B700] text-[#0A0B0D] flex items-center justify-center shrink-0"
+              >
+                <ArrowDown className="w-5 h-5" />
+              </div>
+            </div>
+
             <div>
               <span className="block text-xs font-semibold text-[#52565E] mb-2">
                 1. Plan seleccionado para abonar
@@ -228,59 +297,141 @@ export function PaymentSection({
               </div>
 
               {/* Client reference fields for the WhatsApp payment message */}
-              <div className="pt-2 space-y-3">
-                <p className="text-xs text-[#C7CBD1]">
-                  Cargá tus datos de referencia para enviarlos por WhatsApp y coordinar el pago:
+              <div className="rounded-lg bg-[#FAF9F5] border border-[#E5E5DF] p-4 sm:p-5 space-y-3.5 text-[#0A0B0D]">
+                <p className="text-xs font-semibold text-[#0A0B0D]">
+                  Cargá tus datos y los de tu vehículo para enviarlos por WhatsApp junto con el pago:
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label
-                      htmlFor="pay-client-hint"
-                      className="block text-[11px] font-medium text-[#A6ACB5] mb-1"
+                      htmlFor="pay-owner"
+                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
                     >
-                      Nombre del titular
+                      Titular
                     </label>
                     <input
-                      id="pay-client-hint"
+                      id="pay-owner"
                       type="text"
-                      value={clientHint}
-                      onChange={(e) => setClientHint(e.target.value)}
-                      placeholder="Ej: Carlos Benítez"
-                      className="w-full px-3 py-2 text-xs bg-[#14161A] text-white border border-white/15 rounded-md focus:outline-none focus:border-[#F5B700]"
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
+                      placeholder="Nombre y apellido"
+                      className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
                     />
                   </div>
+
                   <div>
                     <label
-                      htmlFor="pay-client-phone"
-                      className="block text-[11px] font-medium text-[#A6ACB5] mb-1"
+                      htmlFor="pay-phone"
+                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
                     >
-                      Número de teléfono del cliente
+                      Teléfono / WhatsApp
                     </label>
                     <input
-                      id="pay-client-phone"
+                      id="pay-phone"
                       type="tel"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      placeholder="Ej: 0981 000 000"
-                      className="w-full px-3 py-2 text-xs font-mono-tabular bg-[#14161A] text-white border border-white/15 rounded-md focus:outline-none focus:border-[#F5B700]"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0975 000 000"
+                      className="w-full px-3 py-2 text-xs font-mono-tabular bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
                     />
                   </div>
+
                   <div>
                     <label
-                      htmlFor="pay-vehicle-hint"
-                      className="block text-[11px] font-medium text-[#A6ACB5] mb-1"
+                      htmlFor="pay-vtype"
+                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
                     >
-                      Vehículo y chapa
+                      Vehículo
+                    </label>
+                    <select
+                      id="pay-vtype"
+                      value={vehicleType}
+                      onChange={(e) =>
+                        setVehicleType(
+                          e.target.value as 'Automóvil' | 'Camioneta' | 'Utilitario'
+                        )
+                      }
+                      className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                    >
+                      <option value="Automóvil">Automóvil</option>
+                      <option value="Camioneta">Camioneta</option>
+                      <option value="Utilitario">Utilitario</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="pay-vmodel"
+                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                    >
+                      Marca y modelo
                     </label>
                     <input
-                      id="pay-vehicle-hint"
+                      id="pay-vmodel"
                       type="text"
-                      value={vehicleHint}
-                      onChange={(e) => setVehicleHint(e.target.value)}
-                      placeholder="Ej: Toyota Hilux · AAXX 482"
-                      className="w-full px-3 py-2 text-xs bg-[#14161A] text-white border border-white/15 rounded-md focus:outline-none focus:border-[#F5B700]"
+                      value={vehicleModel}
+                      onChange={(e) => setVehicleModel(e.target.value)}
+                      placeholder="Ej: Toyota Hilux"
+                      className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
                     />
                   </div>
+
+                  <div>
+                    <label
+                      htmlFor="pay-vyear"
+                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                    >
+                      Año del vehículo
+                    </label>
+                    <input
+                      id="pay-vyear"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={vehicleYear}
+                      onChange={(e) =>
+                        setVehicleYear(e.target.value.replace(/\D/g, '').slice(0, 4))
+                      }
+                      placeholder="Ej: 2022"
+                      className="w-full px-3 py-2 text-xs font-mono-tabular bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="pay-plate"
+                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                    >
+                      Chapa
+                    </label>
+                    <input
+                      id="pay-plate"
+                      type="text"
+                      value={plate}
+                      onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                      placeholder="Ej: AABB 123"
+                      className="w-full px-3 py-2 text-xs font-mono-tabular uppercase bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="pay-notes"
+                    className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                  >
+                    Observación de inspección (opcional)
+                  </label>
+                  <input
+                    id="pay-notes"
+                    type="text"
+                    maxLength={300}
+                    value={inspectionNotes}
+                    onChange={(e) => setInspectionNotes(e.target.value)}
+                    placeholder="Ej: Kilometraje 82.400 km · Sin fallas previas"
+                    className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                  />
                 </div>
               </div>
 
@@ -289,6 +440,7 @@ export function PaymentSection({
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={handleSendWhatsapp}
                   className="w-full sm:w-auto max-w-full inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-3 text-sm font-bold text-[#0A0B0D] bg-[#F5B700] hover:bg-[#FFD028] rounded-md transition-colors text-center leading-snug break-words"
                 >
                   <MessageCircle className="w-4 h-4 shrink-0" />
@@ -369,7 +521,7 @@ export function PaymentSection({
 
               <div className="relative w-full aspect-[1672/940] rounded-lg overflow-hidden border border-[#262930] bg-[#0A0B0D] select-none">
                 <img
-                  src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_ee8c3949.png"
+                  src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png"
                   alt="Modelo de tarjeta oficial Club de Asistencia Mecánica Mecánica Dakar"
                   className="w-full h-full object-cover"
                 />
@@ -411,6 +563,12 @@ export function PaymentSection({
           </div>
         </div>
       </div>
+
+      <ToastNotification
+        title={toast?.title}
+        message={toast?.message ?? null}
+        onClose={dismissToast}
+      />
     </section>
   );
 }

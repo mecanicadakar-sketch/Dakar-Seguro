@@ -77,12 +77,6 @@ export function Footer({ onOpenAdmin, onNavigatePublic }: FooterProps) {
           >
             Panel Admin
           </button>
-          <a
-            href="mailto:mecanicadakar@gmail.com"
-            className="font-mono-tabular text-[#F5B700] hover:underline"
-          >
-            mecanicadakar@gmail.com
-          </a>
         </div>
       </div>
     </footer>

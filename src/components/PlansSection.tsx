@@ -16,6 +16,8 @@ export function PlansSection({
 }: PlansSectionProps) {
   const [diagImgError, setDiagImgError] = useState(false);
   const [inspImgError, setInspImgError] = useState(false);
+  const [lightsImgError, setLightsImgError] = useState(false);
+  const [fluidsImgError, setFluidsImgError] = useState(false);
 
   return (
     <section id="planes" className="py-16 lg:py-20 bg-[#F6F6F4]">
@@ -262,6 +264,76 @@ export function PlansSection({
               </div>
               <p className="mt-4 text-xs text-[#6A6E75] tabular-nums">
                 Repuestos y lubricantes a cargo del socio
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E2E2DC] rounded-lg overflow-hidden grid grid-cols-1 sm:grid-cols-12 items-stretch">
+            <div className="sm:col-span-5 min-h-[200px] bg-[#0A0B0D]">
+              {!lightsImgError ? (
+                <img
+                  src={WORKSHOP_IMAGES.lights}
+                  alt="Técnico realizando cambio de foco de faro delantero y revisión general de luces"
+                  referrerPolicy="no-referrer"
+                  onError={() => setLightsImgError(true)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-[#E4E6EB]">
+                  <Wrench className="w-7 h-7 text-[#F5B700] mb-2" />
+                  <span className="text-xs font-medium">Focos y Luces</span>
+                </div>
+              )}
+            </div>
+            <div className="sm:col-span-7 p-6 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-semibold text-[#8A6200]">
+                  Incluido en los 3 planes · Mano de obra gratuita
+                </p>
+                <h3 className="font-display text-2xl font-bold text-[#0A0B0D] mt-1">
+                  Cambio de focos y revisión de luces
+                </h3>
+                <p className="mt-2 text-sm text-[#4A4E55] leading-relaxed">
+                  Instalación sin costo de mano de obra para focos quemados y control completo de luces altas, bajas, de posición, freno y señaleros en taller, además del chequeo de batería y alternador.
+                </p>
+              </div>
+              <p className="mt-4 text-xs text-[#6A6E75] tabular-nums">
+                Mano de obra 100% bonificada · Foco a cargo del socio
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E2E2DC] rounded-lg overflow-hidden grid grid-cols-1 sm:grid-cols-12 items-stretch">
+            <div className="sm:col-span-5 min-h-[200px] bg-[#0A0B0D]">
+              {!fluidsImgError ? (
+                <img
+                  src={WORKSHOP_IMAGES.fluids}
+                  alt="Técnico verificando niveles de aceite de motor, refrigerante, líquido de frenos y dirección hidráulica"
+                  referrerPolicy="no-referrer"
+                  onError={() => setFluidsImgError(true)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-[#E4E6EB]">
+                  <Wrench className="w-7 h-7 text-[#F5B700] mb-2" />
+                  <span className="text-xs font-medium">Niveles de Fluidos</span>
+                </div>
+              )}
+            </div>
+            <div className="sm:col-span-7 p-6 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-semibold text-[#8A6200]">
+                  Control preventivo gratuito · Los 3 planes
+                </p>
+                <h3 className="font-display text-2xl font-bold text-[#0A0B0D] mt-1">
+                  Revisión de niveles de fluidos vitales
+                </h3>
+                <p className="mt-2 text-sm text-[#4A4E55] leading-relaxed">
+                  Verificación visual periódica de aceite de motor, líquido refrigerante, líquido de frenos y aceite de dirección hidráulica para prevenir recalentamientos, fugas y desgastes prematuros.
+                </p>
+              </div>
+              <p className="mt-4 text-xs text-[#6A6E75] tabular-nums">
+                Inspección sin costo · Reposición o lubricantes aparte
               </p>
             </div>
           </div>

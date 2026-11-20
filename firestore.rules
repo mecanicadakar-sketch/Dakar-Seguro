@@ -64,6 +64,7 @@ service cloud.firestore {
           'phone',
           'vehicleType',
           'vehicleModel',
+          'vehicleYear',
           'plate',
           'joinedDate',
           'inspectionApproved',
@@ -102,6 +103,7 @@ service cloud.firestore {
         && data.vehicleModel is string
         && data.vehicleModel.size() >= 2
         && data.vehicleModel.size() <= 100
+        && (!('vehicleYear' in data) || (data.vehicleYear is string && (data.vehicleYear.size() == 0 || (data.vehicleYear.size() == 4 && data.vehicleYear.matches('^(19|20)\\d{2}$')))))
         && data.plate is string
         && data.plate.size() >= 4
         && data.plate.size() <= 20
@@ -212,6 +214,7 @@ service cloud.firestore {
           'phone',
           'vehicleType',
           'vehicleModel',
+          'vehicleYear',
           'plate',
           'joinedDate',
           'inspectionApproved',
