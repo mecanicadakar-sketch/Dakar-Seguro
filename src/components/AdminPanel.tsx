@@ -261,7 +261,6 @@ export function AdminPanel({
   const [joinedDate, setJoinedDate] = useState(TODAY_ISO);
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
-  const [vehicleType, setVehicleType] = useState<'Automóvil' | 'Camioneta' | 'Utilitario'>('Automóvil');
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehicleYear, setVehicleYear] = useState('');
   const [plate, setPlate] = useState('');
@@ -564,7 +563,7 @@ export function AdminPanel({
         paymentDate,
         ownerName: cleanOwner,
         phone: cleanPhone,
-        vehicleType,
+        vehicleType: 'Automóvil' as const,
         vehicleModel: cleanModel,
         vehicleYear: cleanYear,
         plate: cleanPlate,
@@ -594,7 +593,7 @@ export function AdminPanel({
         paymentDate,
         ownerName: cleanOwner,
         phone: cleanPhone,
-        vehicleType,
+        vehicleType: 'Automóvil',
         vehicleModel: cleanModel,
         vehicleYear: cleanYear,
         plate: cleanPlate,
@@ -886,7 +885,7 @@ export function AdminPanel({
       `Estado de pago: ${record.paymentStatus === 'abonado' ? 'ABONADO' : 'PENDIENTE'} (${formatDateEs(record.paymentDate)})`,
       `Plan: ${plan.name} (Opción ${letter}) · ${plan.formattedPrice}/mes`,
       `Titular: ${record.ownerName} · Tel: ${record.phone}`,
-      `Vehículo: ${record.vehicleType} ${record.vehicleModel}${
+      `Vehículo: ${record.vehicleModel}${
         record.vehicleYear ? ` (${record.vehicleYear})` : ''
       } · Chapa: ${record.plate}`,
       `Vencimiento período: ${formatDateEs(renewal)}`,
@@ -1301,34 +1300,13 @@ export function AdminPanel({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="admin-vtype"
-                  className="block text-xs font-semibold text-[#0A0B0D] mb-1"
-                >
-                  Vehículo
-                </label>
-                <select
-                  id="admin-vtype"
-                  value={vehicleType}
-                  onChange={(e) =>
-                    setVehicleType(e.target.value as AdminMembership['vehicleType'])
-                  }
-                  className="w-full px-3 py-2 text-sm bg-[#FAF9F7] border border-[#DCDCD5] rounded-md focus:outline-none focus:border-[#F5B700]"
-                >
-                  <option value="Automóvil">Automóvil</option>
-                  <option value="Camioneta">Camioneta</option>
-                  <option value="Utilitario">Utilitario</option>
-                </select>
-              </div>
-
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+              <div className="sm:col-span-6">
                 <label
                   htmlFor="admin-vmodel"
                   className="block text-xs font-semibold text-[#0A0B0D] mb-1"
                 >
-                  Marca y modelo
+                  Vehículo (Marca y modelo)
                 </label>
                 <input
                   id="admin-vmodel"
@@ -1340,7 +1318,7 @@ export function AdminPanel({
                 />
               </div>
 
-              <div>
+              <div className="sm:col-span-3">
                 <label
                   htmlFor="admin-vyear"
                   className="block text-xs font-semibold text-[#0A0B0D] mb-1"
@@ -1361,7 +1339,7 @@ export function AdminPanel({
                 />
               </div>
 
-              <div>
+              <div className="sm:col-span-3">
                 <label
                   htmlFor="admin-plate"
                   className="block text-xs font-semibold text-[#0A0B0D] mb-1"
@@ -1457,6 +1435,21 @@ export function AdminPanel({
               const cardPlate = selectedCardMember
                 ? selectedCardMember.plate
                 : plate.trim().toUpperCase();
+              const cardVehicle = selectedCardMember
+                ? [
+                    selectedCardMember.vehicleModel,
+                    selectedCardMember.vehicleYear
+                      ? `(${selectedCardMember.vehicleYear})`
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')
+                : [
+                    vehicleModel.trim(),
+                    vehicleYear.trim() ? `(${vehicleYear.trim()})` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
               const cardPlan = selectedCardMember ? selectedCardMember.planId : planId;
               const cardNum = selectedCardMember
                 ? selectedCardMember.memberNumber
@@ -1497,6 +1490,7 @@ export function AdminPanel({
                           handleDownloadCard({
                             ownerName: cardOwner,
                             plate: cardPlate,
+                            vehicleInfo: cardVehicle,
                             planId: cardPlan,
                             memberNumber: cardNum,
                             expirationDateIso: cardRenewal,
@@ -1513,6 +1507,7 @@ export function AdminPanel({
                           handlePrintCard({
                             ownerName: cardOwner,
                             plate: cardPlate,
+                            vehicleInfo: cardVehicle,
                             planId: cardPlan,
                             memberNumber: cardNum,
                             expirationDateIso: cardRenewal,
@@ -1536,30 +1531,36 @@ export function AdminPanel({
                   )}
 
                   <div
-                    className={`relative w-full aspect-[1672/940] rounded-xl overflow-hidden border border-[#262930] bg-[#0A0B0D] shadow-sm select-none ${
+                    className={`relative w-full aspect-[1672/941] rounded-xl overflow-hidden border border-[#262930] bg-[#0A0B0D] shadow-sm select-none ${
                       modalCardMember ? '' : 'print-card-target'
                     }`}
                   >
                     <img
-                      src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png"
+                      src="/assets/aistudio/mecanica_dakar_tarjeta_qr_56bdacf3.png"
                       alt="Tarjeta oficial Club de Asistencia Mecánica Mecánica Dakar"
                       className="w-full h-full object-cover"
                     />
                     <div
-                      style={{ left: '35%', top: '44.8%', width: '39.2%', height: '7%' }}
-                      className="absolute flex items-center px-2 text-[#0A0B0D] font-bold text-[11px] sm:text-sm truncate"
+                      style={{ left: '35%', top: '39.8%', width: '39.4%', height: '6.0%' }}
+                      className="absolute flex items-center px-2 text-[#0A0B0D] font-bold text-[10px] sm:text-xs truncate"
                     >
                       {cardOwner}
                     </div>
                     <div
-                      style={{ left: '35%', top: '53.7%', width: '39.2%', height: '6.8%' }}
-                      className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold uppercase text-[11px] sm:text-sm truncate"
+                      style={{ left: '35%', top: '47.5%', width: '39.4%', height: '5.8%' }}
+                      className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold uppercase text-[10px] sm:text-xs truncate"
                     >
                       {cardPlate}
                     </div>
+                    <div
+                      style={{ left: '35%', top: '54.7%', width: '39.4%', height: '6.0%' }}
+                      className="absolute flex items-center px-2 text-[#0A0B0D] font-bold text-[10px] sm:text-xs truncate"
+                    >
+                      {cardVehicle}
+                    </div>
                     {cardPlan === 'basico' && (
                       <div
-                        style={{ left: '34.3%', top: '62.7%', width: '3.6%', height: '5.8%' }}
+                        style={{ left: '34.5%', top: '62.2%', width: '3.4%', height: '5.5%' }}
                         className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-xs sm:text-base"
                       >
                         ✓
@@ -1567,7 +1568,7 @@ export function AdminPanel({
                     )}
                     {cardPlan === 'platino' && (
                       <div
-                        style={{ left: '47.0%', top: '62.7%', width: '3.5%', height: '5.8%' }}
+                        style={{ left: '47.2%', top: '62.2%', width: '3.2%', height: '5.5%' }}
                         className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-xs sm:text-base"
                       >
                         ✓
@@ -1575,21 +1576,21 @@ export function AdminPanel({
                     )}
                     {cardPlan === 'oro' && (
                       <div
-                        style={{ left: '59.3%', top: '62.7%', width: '3.4%', height: '5.8%' }}
+                        style={{ left: '59.7%', top: '62.2%', width: '3.3%', height: '5.5%' }}
                         className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-xs sm:text-base"
                       >
                         ✓
                       </div>
                     )}
                     <div
-                      style={{ left: '35%', top: '70.4%', width: '39.2%', height: '6.8%' }}
-                      className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold text-[11px] sm:text-sm truncate"
+                      style={{ left: '35%', top: '69.0%', width: '39.4%', height: '5.7%' }}
+                      className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold text-[10px] sm:text-xs truncate"
                     >
                       {cardNum}
                     </div>
                     <div
-                      style={{ left: '35.5%', top: '79.3%', width: '32%', height: '5.9%' }}
-                      className="absolute bg-white rounded flex items-center justify-center text-[#0A0B0D] font-mono-tabular font-bold text-[11px] sm:text-sm"
+                      style={{ left: '35.2%', top: '76.6%', width: '32.2%', height: '5.4%' }}
+                      className="absolute bg-white rounded flex items-center justify-center text-[#0A0B0D] font-mono-tabular font-bold text-[10px] sm:text-xs"
                     >
                       {`${cardParts.d} / ${cardParts.m} / ${cardParts.y}`}
                     </div>
@@ -2060,7 +2061,7 @@ export function AdminPanel({
                           {record.ownerName}
                         </span>
                         <span className="text-xs text-[#52565E]">
-                          {record.vehicleType} {record.vehicleModel}
+                          {record.vehicleModel}
                           {record.vehicleYear ? ` (${record.vehicleYear})` : ''} · Tel: {record.phone}
                         </span>
                         <span className="text-xs font-semibold text-[#8A6200]">
@@ -2420,27 +2421,40 @@ export function AdminPanel({
             </div>
 
             <div className="p-5">
-              <div className="print-card-target relative w-full aspect-[1672/940] rounded-xl overflow-hidden border border-[#262930] bg-[#0A0B0D] select-none">
+              <div className="print-card-target relative w-full aspect-[1672/941] rounded-xl overflow-hidden border border-[#262930] bg-[#0A0B0D] select-none">
                 <img
-                  src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png"
+                  src="/assets/aistudio/mecanica_dakar_tarjeta_qr_56bdacf3.png"
                   alt={`Tarjeta oficial de ${modalCardMember.ownerName}`}
                   className="w-full h-full object-cover"
                 />
                 <div
-                  style={{ left: '35%', top: '44.8%', width: '39.2%', height: '7%' }}
-                  className="absolute flex items-center px-2 text-[#0A0B0D] font-bold text-xs sm:text-base truncate"
+                  style={{ left: '35%', top: '39.8%', width: '39.4%', height: '6.0%' }}
+                  className="absolute flex items-center px-2 text-[#0A0B0D] font-bold text-xs sm:text-sm truncate"
                 >
                   {modalCardMember.ownerName}
                 </div>
                 <div
-                  style={{ left: '35%', top: '53.7%', width: '39.2%', height: '6.8%' }}
-                  className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold uppercase text-xs sm:text-base truncate"
+                  style={{ left: '35%', top: '47.5%', width: '39.4%', height: '5.8%' }}
+                  className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold uppercase text-xs sm:text-sm truncate"
                 >
                   {modalCardMember.plate}
                 </div>
+                <div
+                  style={{ left: '35%', top: '54.7%', width: '39.4%', height: '6.0%' }}
+                  className="absolute flex items-center px-2 text-[#0A0B0D] font-bold text-xs sm:text-sm truncate"
+                >
+                  {[
+                    modalCardMember.vehicleModel,
+                    modalCardMember.vehicleYear
+                      ? `(${modalCardMember.vehicleYear})`
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                </div>
                 {modalCardMember.planId === 'basico' && (
                   <div
-                    style={{ left: '34.3%', top: '62.7%', width: '3.6%', height: '5.8%' }}
+                    style={{ left: '34.5%', top: '62.2%', width: '3.4%', height: '5.5%' }}
                     className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-sm sm:text-lg"
                   >
                     ✓
@@ -2448,7 +2462,7 @@ export function AdminPanel({
                 )}
                 {modalCardMember.planId === 'platino' && (
                   <div
-                    style={{ left: '47.0%', top: '62.7%', width: '3.5%', height: '5.8%' }}
+                    style={{ left: '47.2%', top: '62.2%', width: '3.2%', height: '5.5%' }}
                     className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-sm sm:text-lg"
                   >
                     ✓
@@ -2456,21 +2470,21 @@ export function AdminPanel({
                 )}
                 {modalCardMember.planId === 'oro' && (
                   <div
-                    style={{ left: '59.3%', top: '62.7%', width: '3.4%', height: '5.8%' }}
+                    style={{ left: '59.7%', top: '62.2%', width: '3.3%', height: '5.5%' }}
                     className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-sm sm:text-lg"
                   >
                     ✓
                   </div>
                 )}
                 <div
-                  style={{ left: '35%', top: '70.4%', width: '39.2%', height: '6.8%' }}
-                  className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold text-xs sm:text-base truncate"
+                  style={{ left: '35%', top: '69.0%', width: '39.4%', height: '5.7%' }}
+                  className="absolute flex items-center px-2 text-[#0A0B0D] font-mono-tabular font-bold text-xs sm:text-sm truncate"
                 >
                   {modalCardMember.memberNumber}
                 </div>
                 <div
-                  style={{ left: '35.5%', top: '79.3%', width: '32%', height: '5.9%' }}
-                  className="absolute bg-white rounded flex items-center justify-center text-[#0A0B0D] font-mono-tabular font-bold text-xs sm:text-base"
+                  style={{ left: '35.2%', top: '76.6%', width: '32.2%', height: '5.4%' }}
+                  className="absolute bg-white rounded flex items-center justify-center text-[#0A0B0D] font-mono-tabular font-bold text-xs sm:text-sm"
                 >
                   {(() => {
                     const p = formatDateParts(
@@ -2509,6 +2523,14 @@ export function AdminPanel({
                     handleDownloadCard({
                       ownerName: modalCardMember.ownerName,
                       plate: modalCardMember.plate,
+                      vehicleInfo: [
+                        modalCardMember.vehicleModel,
+                        modalCardMember.vehicleYear
+                          ? `(${modalCardMember.vehicleYear})`
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' '),
                       planId: modalCardMember.planId,
                       memberNumber: modalCardMember.memberNumber,
                       expirationDateIso: addDays(
@@ -2528,6 +2550,14 @@ export function AdminPanel({
                     handlePrintCard({
                       ownerName: modalCardMember.ownerName,
                       plate: modalCardMember.plate,
+                      vehicleInfo: [
+                        modalCardMember.vehicleModel,
+                        modalCardMember.vehicleYear
+                          ? `(${modalCardMember.vehicleYear})`
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' '),
                       planId: modalCardMember.planId,
                       memberNumber: modalCardMember.memberNumber,
                       expirationDateIso: addDays(

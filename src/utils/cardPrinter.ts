@@ -3,6 +3,7 @@ import { PlanId } from '../data/membershipData';
 export interface PrintableCardData {
   ownerName: string;
   plate: string;
+  vehicleInfo: string;
   planId: PlanId;
   memberNumber: string;
   expirationDateIso: string;
@@ -21,11 +22,11 @@ export async function downloadClubCardPng(data: PrintableCardData): Promise<void
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
     img.onerror = () => reject(new Error('No se pudo cargar la imagen base de la tarjeta.'));
-    img.src = '/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png';
+    img.src = '/assets/aistudio/mecanica_dakar_tarjeta_qr_56bdacf3.png';
   });
 
   const width = img.naturalWidth || 1672;
-  const height = img.naturalHeight || 940;
+  const height = img.naturalHeight || 941;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -41,47 +42,56 @@ export async function downloadClubCardPng(data: PrintableCardData): Promise<void
   ctx.textBaseline = 'middle';
 
   // Nombre del Titular
-  ctx.font = '700 32px "DM Sans", Arial, sans-serif';
-  ctx.fillText(data.ownerName.trim(), width * 0.356, height * 0.483, width * 0.375);
+  ctx.font = '700 30px "DM Sans", Arial, sans-serif';
+  ctx.fillText(data.ownerName.trim(), width * 0.356, height * 0.429, width * 0.380);
 
   // Chapa del Vehículo
-  ctx.font = '700 32px "IBM Plex Mono", monospace';
+  ctx.font = '700 30px "IBM Plex Mono", monospace';
   ctx.fillText(
     data.plate.trim().toUpperCase(),
     width * 0.356,
-    height * 0.571,
-    width * 0.375
+    height * 0.505,
+    width * 0.380
+  );
+
+  // Vehículo (Tipo + Marca/modelo + Año)
+  ctx.font = '700 27px "DM Sans", Arial, sans-serif';
+  ctx.fillText(
+    data.vehicleInfo.trim(),
+    width * 0.356,
+    height * 0.578,
+    width * 0.380
   );
 
   // Plan Checkmark (A = Basico, B = Platino, C = Oro)
-  ctx.font = '700 42px Arial, sans-serif';
+  ctx.font = '700 38px Arial, sans-serif';
   ctx.textAlign = 'center';
   if (data.planId === 'basico') {
-    ctx.fillText('✓', width * 0.361, height * 0.657);
+    ctx.fillText('✓', width * 0.362, height * 0.650);
   } else if (data.planId === 'platino') {
-    ctx.fillText('✓', width * 0.488, height * 0.657);
+    ctx.fillText('✓', width * 0.488, height * 0.650);
   } else if (data.planId === 'oro') {
-    ctx.fillText('✓', width * 0.610, height * 0.657);
+    ctx.fillText('✓', width * 0.613, height * 0.650);
   }
 
   // N° de Afiliado
   ctx.textAlign = 'left';
-  ctx.font = '700 32px "IBM Plex Mono", monospace';
+  ctx.font = '700 30px "IBM Plex Mono", monospace';
   ctx.fillText(
     data.memberNumber.trim().toUpperCase(),
     width * 0.356,
-    height * 0.738,
-    width * 0.375
+    height * 0.720,
+    width * 0.380
   );
 
   // Vencimiento white cover & date
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(width * 0.355, height * 0.793, width * 0.320, height * 0.059);
+  ctx.fillRect(width * 0.352, height * 0.766, width * 0.322, height * 0.054);
   ctx.fillStyle = '#0A0B0D';
   ctx.textAlign = 'center';
-  ctx.font = '700 30px "IBM Plex Mono", monospace';
+  ctx.font = '700 28px "IBM Plex Mono", monospace';
   const parts = formatDateParts(data.expirationDateIso);
-  ctx.fillText(`${parts.d} / ${parts.m} / ${parts.y}`, width * 0.515, height * 0.823);
+  ctx.fillText(`${parts.d} / ${parts.m} / ${parts.y}`, width * 0.513, height * 0.794);
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), 'image/png')

@@ -26,7 +26,6 @@ export function PaymentSection({
   const [paymentModality, setPaymentModality] = useState<'mensual' | 'anual'>('mensual');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
-  const [vehicleType, setVehicleType] = useState<'Automóvil' | 'Camioneta' | 'Utilitario'>('Automóvil');
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehicleYear, setVehicleYear] = useState('');
   const [plate, setPlate] = useState('');
@@ -55,7 +54,6 @@ export function PaymentSection({
         : `Mensual anticipado (${activePlan.formattedPrice}/mes)`;
 
     const vehicleDetails = [
-      vehicleType,
       vehicleModel.trim() || null,
       vehicleYear.trim() ? `(${vehicleYear.trim()})` : null,
     ]
@@ -68,7 +66,7 @@ export function PaymentSection({
       `Modalidad de pago: ${modalityLabel}`,
       ownerName.trim() ? `Titular: ${ownerName.trim()}` : null,
       phone.trim() ? `Teléfono / WhatsApp: ${phone.trim()}` : null,
-      `Vehículo: ${vehicleDetails}`,
+      vehicleDetails ? `Vehículo: ${vehicleDetails}` : null,
       plate.trim() ? `Chapa: ${plate.trim().toUpperCase()}` : null,
       inspectionNotes.trim()
         ? `Observación de inspección: ${inspectionNotes.trim()}`
@@ -82,7 +80,6 @@ export function PaymentSection({
     paymentModality,
     ownerName,
     phone,
-    vehicleType,
     vehicleModel,
     vehicleYear,
     plate,
@@ -337,82 +334,61 @@ export function PaymentSection({
                     />
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="pay-vtype"
-                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
-                    >
-                      Vehículo
-                    </label>
-                    <select
-                      id="pay-vtype"
-                      value={vehicleType}
-                      onChange={(e) =>
-                        setVehicleType(
-                          e.target.value as 'Automóvil' | 'Camioneta' | 'Utilitario'
-                        )
-                      }
-                      className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
-                    >
-                      <option value="Automóvil">Automóvil</option>
-                      <option value="Camioneta">Camioneta</option>
-                      <option value="Utilitario">Utilitario</option>
-                    </select>
-                  </div>
+                  <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-6">
+                      <label
+                        htmlFor="pay-vmodel"
+                        className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                      >
+                        Vehículo (Marca y modelo)
+                      </label>
+                      <input
+                        id="pay-vmodel"
+                        type="text"
+                        value={vehicleModel}
+                        onChange={(e) => setVehicleModel(e.target.value)}
+                        placeholder="Ej: Toyota Hilux"
+                        className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                      />
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="pay-vmodel"
-                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
-                    >
-                      Marca y modelo
-                    </label>
-                    <input
-                      id="pay-vmodel"
-                      type="text"
-                      value={vehicleModel}
-                      onChange={(e) => setVehicleModel(e.target.value)}
-                      placeholder="Ej: Toyota Hilux"
-                      className="w-full px-3 py-2 text-xs bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
-                    />
-                  </div>
+                    <div className="sm:col-span-3">
+                      <label
+                        htmlFor="pay-vyear"
+                        className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                      >
+                        Año del vehículo
+                      </label>
+                      <input
+                        id="pay-vyear"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={vehicleYear}
+                        onChange={(e) =>
+                          setVehicleYear(e.target.value.replace(/\D/g, '').slice(0, 4))
+                        }
+                        placeholder="Ej: 2022"
+                        className="w-full px-3 py-2 text-xs font-mono-tabular bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                      />
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="pay-vyear"
-                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
-                    >
-                      Año del vehículo
-                    </label>
-                    <input
-                      id="pay-vyear"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={vehicleYear}
-                      onChange={(e) =>
-                        setVehicleYear(e.target.value.replace(/\D/g, '').slice(0, 4))
-                      }
-                      placeholder="Ej: 2022"
-                      className="w-full px-3 py-2 text-xs font-mono-tabular bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="pay-plate"
-                      className="block text-xs font-semibold text-[#0A0B0D] mb-1"
-                    >
-                      Chapa
-                    </label>
-                    <input
-                      id="pay-plate"
-                      type="text"
-                      value={plate}
-                      onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                      placeholder="Ej: AABB 123"
-                      className="w-full px-3 py-2 text-xs font-mono-tabular uppercase bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
-                    />
+                    <div className="sm:col-span-3">
+                      <label
+                        htmlFor="pay-plate"
+                        className="block text-xs font-semibold text-[#0A0B0D] mb-1"
+                      >
+                        Chapa
+                      </label>
+                      <input
+                        id="pay-plate"
+                        type="text"
+                        value={plate}
+                        onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                        placeholder="Ej: AABB 123"
+                        className="w-full px-3 py-2 text-xs font-mono-tabular uppercase bg-white text-[#0A0B0D] placeholder:text-[#7B808A] border border-[#D0D0C8] rounded-md focus:outline-none focus:border-[#F5B700] focus:ring-1 focus:ring-[#F5B700]"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -519,15 +495,15 @@ export function PaymentSection({
                 </p>
               </div>
 
-              <div className="relative w-full aspect-[1672/940] rounded-lg overflow-hidden border border-[#262930] bg-[#0A0B0D] select-none">
+              <div className="relative w-full aspect-[1672/941] rounded-lg overflow-hidden border border-[#262930] bg-[#0A0B0D] select-none">
                 <img
-                  src="/assets/aistudio/Tarjeta_Club_Mec_nica_Dakar_310c2d09.png"
+                  src="/assets/aistudio/mecanica_dakar_tarjeta_qr_56bdacf3.png"
                   alt="Modelo de tarjeta oficial Club de Asistencia Mecánica Mecánica Dakar"
                   className="w-full h-full object-cover"
                 />
                 {selectedPlan === 'basico' && (
                   <div
-                    style={{ left: '34.3%', top: '62.7%', width: '3.6%', height: '5.8%' }}
+                    style={{ left: '34.5%', top: '62.2%', width: '3.4%', height: '5.5%' }}
                     className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-xs sm:text-sm"
                   >
                     ✓
@@ -535,7 +511,7 @@ export function PaymentSection({
                 )}
                 {selectedPlan === 'platino' && (
                   <div
-                    style={{ left: '47.0%', top: '62.7%', width: '3.5%', height: '5.8%' }}
+                    style={{ left: '47.2%', top: '62.2%', width: '3.2%', height: '5.5%' }}
                     className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-xs sm:text-sm"
                   >
                     ✓
@@ -543,7 +519,7 @@ export function PaymentSection({
                 )}
                 {selectedPlan === 'oro' && (
                   <div
-                    style={{ left: '59.3%', top: '62.7%', width: '3.4%', height: '5.8%' }}
+                    style={{ left: '59.7%', top: '62.2%', width: '3.3%', height: '5.5%' }}
                     className="absolute flex items-center justify-center text-[#0A0B0D] font-bold text-xs sm:text-sm"
                   >
                     ✓
